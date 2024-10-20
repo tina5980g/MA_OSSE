@@ -2,15 +2,10 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
-public class NonIdentifyingField extends DataField<String>{
+public class NonIdentifyingField extends StringField {
 
     public NonIdentifyingField(String rawValue) {
         super(rawValue);
-    }
-
-    @Override
-    protected String parse(String rawValue) {
-        return rawValue;
     }
 
     @Override

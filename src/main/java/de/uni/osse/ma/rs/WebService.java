@@ -1,5 +1,6 @@
 package de.uni.osse.ma.rs;
 
+import de.uni.osse.ma.rs.dto.DataWrapper;
 import de.uni.osse.ma.service.FileInteractionService;
 import de.uni.osse.ma.service.simmulatedAnnealing.Preprocessor;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +19,11 @@ public class WebService {
 
     @GetMapping("/greeting")
     public String anonymity() throws Exception {
-        var data = fileInteractionService.readLocalTestData("adult.csv", "csv");
-        var fieldMetadata = fileInteractionService.readLocalTestData("adult_datafields.json", "json");
-        var processedData = preprocessor.addAdditionalObfuscationLevels(data);
-        fileInteractionService.writeAsCSV(processedData);
+        var data = fileInteractionService.readLocalTestData("adult.csv");
+        var fieldMetadata = fileInteractionService.readLocalHeaderData("adult_datafields.json");
+        final DataWrapper wrapper = new DataWrapper(data, fieldMetadata);
+        var processedData = preprocessor.addAdditionalObfuscationLevels(wrapper);
+        fileInteractionService.writeAsCSV(processedData, "adult_processed.csv");
 
 
         // DO STUFF
