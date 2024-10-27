@@ -22,7 +22,7 @@ public class WebService {
         var data = fileInteractionService.readLocalTestData("adult.csv");
         var fieldMetadata = fileInteractionService.readLocalHeaderData("adult_datafields.json");
         final DataWrapper wrapper = new DataWrapper(data, fieldMetadata);
-        var processedData = preprocessor.addAdditionalObfuscationLevels(wrapper);
+        var processedData = preprocessor.addObfusccations(wrapper);
         fileInteractionService.writeAsCSV(processedData, "adult_processed.csv");
 
 

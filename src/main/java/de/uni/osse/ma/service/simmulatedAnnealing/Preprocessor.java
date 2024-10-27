@@ -7,51 +7,43 @@ import de.uni.osse.ma.rs.dto.HeaderInfo;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 public class Preprocessor {
 
 
-    // TODO: OutOfMemory: Need to work with stream of rows -> DataWrapper based on an InputStream / CSV-Wrapper
-    public String[][] addAdditionalObfuscationLevels(DataWrapper dataWrapper) {
-        ArrayList<ArrayList<String>> resultContainer = new ArrayList<>();
-        resultContainer.add(new ArrayList<>(dataWrapper.getHeaders().stream().map(HeaderInfo::columnName).toList()));
-        resultContainer.addAll(
-                dataWrapper.getRows().stream()
-                        .map(valueRow -> new ArrayList<>(valueRow.stream()
-                                .map(field -> field.representWithObfuscation(0))
-                                .toList()))
-                        .toList()
-        );
+    public Stream<String[]> addObfusccations(DataWrapper dataWrapper) {
+        // We have to retrieve elements in high frequency, array should be quicker here
+        HeaderInfo[] headers = dataWrapper.getHeaders().toArray(new HeaderInfo[0]);
 
-        // At this point we have the original data without gradual obfuscation. These colums are added now
+        // at least headers.length
+        final List<String> csvHeaders = new ArrayList<>(headers.length*2);
 
-        int originalColumnAmount = dataWrapper.getHeaders().size();
-        for (int iOriginalColumn = 0; iOriginalColumn < originalColumnAmount; iOriginalColumn++) {
-
-            var columnType = dataWrapper.getHeaders().get(iOriginalColumn).columnType();
-            if (columnType == ColumnType.IDENTIFIER || columnType == ColumnType.UNDEFINED) {
-                continue;
-            }
-            // TODO: there needs to be a better way then catching the exception
-            for (int j = 1; true; j++) {
-                try {
-                    for (int iRow = 1; iRow < dataWrapper.getRows().size() + 1; iRow++) {
-                        resultContainer.get(iRow).add(dataWrapper.getRows().get(iRow-1).get(iOriginalColumn).representWithObfuscation(j));
-                    }
-                    resultContainer.getFirst().add(dataWrapper.getHeaders().get(iOriginalColumn).columnName() + "_" + j);
-                } catch (NoMoreAnonymizationLevelsException _) {
-                    break;
+        for (int i = 0; i < dataWrapper.getHeaders().size(); i++) {
+            final HeaderInfo curHeader = headers[i];
+            if (curHeader.dataType().getMaxObfuscation() > 0) {
+                for (int j = 0; j < curHeader.dataType().getMaxObfuscation(); j++) {
+                    csvHeaders.add(curHeader.columnName() + "_" + j);
                 }
             }
         }
 
-        var result = new String[resultContainer.size()][resultContainer.getFirst().size()];
-        for (int i = 0; i < resultContainer.size(); i++) {
-            for (int j = 0; j < resultContainer.getFirst().size(); j++) {
-                result[i][j] = resultContainer.get(i).get(j);
-            }
-        }
-        return result;
+        // Stream.of defaults to vararg
+        Stream<String[]> csvFirstRow1 = Stream.ofNullable(csvHeaders.toArray(new String[0]));
+
+        Stream<String[]> dataRows = dataWrapper.getRows().stream()
+                .map(dataFields -> {
+                    List<String> results = new ArrayList<>();
+                    for (int fieldIndex = 0; fieldIndex < dataFields.size(); fieldIndex++) {
+                        final HeaderInfo curHeader = headers[fieldIndex];
+                        for (int levelIndex = 0; levelIndex < curHeader.dataType().getMaxObfuscation(); levelIndex++) {
+                            results.add(dataFields.get(fieldIndex).representWithObfuscation(levelIndex));
+                        }
+                    }
+                    return results.toArray(String[]::new);
+                });
+        return Stream.concat(csvFirstRow1, dataRows);
     }
 }

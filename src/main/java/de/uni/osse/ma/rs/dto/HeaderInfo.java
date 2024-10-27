@@ -1,8 +1,6 @@
 package de.uni.osse.ma.rs.dto;
 
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.DataField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.IdentifyingField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.NonIdentifyingField;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
@@ -19,15 +17,21 @@ public record HeaderInfo(@Nonnull String columnName, @Nonnull String columnIdent
     }
 
     public DataField<?> parseValue(String rawValue) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
-        var result = switch (columnType) {
-            case UNDEFINED, CLASSIFICATION_TARGET -> new NonIdentifyingField(rawValue);
-            case IDENTIFIER -> new IdentifyingField(rawValue);
-            case PSEUDO_IDENTIFIER -> null;
-        };
+        return dataType().getRepresentingClass().getDeclaredConstructor(String.class).newInstance(rawValue);
+    }
 
-        if (result == null) {
-            return dataType.getRepresentingClass().getDeclaredConstructor(String.class).newInstance(rawValue);
-        }
-        return result;
+    @Override
+    @Nonnull
+    public DataType dataType() {
+        return switch (columnType) {
+            case UNDEFINED, CLASSIFICATION_TARGET -> DataType.NONIDENTIFIER;
+            case IDENTIFIER -> DataType.IDENTIFIER;
+            case PSEUDO_IDENTIFIER -> {
+                if (dataType == null) {
+                    throw new IllegalArgumentException("A dataType is required for pseudo identifiers");
+                }
+                yield dataType;
+            }
+        };
     }
 }

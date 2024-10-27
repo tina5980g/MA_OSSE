@@ -9,10 +9,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -33,13 +34,12 @@ public class FileInteractionService {
         }
     }
 
-    public void writeAsCSV(final String[][] data, String filename) throws IOException, URISyntaxException {
+
+    public void writeAsCSV(final Stream<String[]> data, String filename) throws IOException {
         var path = Paths.get("/Users/tinayau/IdeaProjects/MA_OSSE/src/main/resources/testData").resolve(filename);
 
-        try(CSVWriter csvWriter = new CSVWriter(Files.newBufferedWriter(path))) {
-            for (String[] datum : data) {
-                csvWriter.writeNext(datum);
-            }
+        try(CSVWriter csvWriter = new CSVWriter(Files.newBufferedWriter(path, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE, StandardOpenOption.CREATE))) {
+            data.sequential().forEach(csvWriter::writeNext);
         }
     }
 }
