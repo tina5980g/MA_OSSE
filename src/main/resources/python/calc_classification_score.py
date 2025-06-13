@@ -20,11 +20,16 @@ def score_binary(model, x_test, y_test):
     return auc_roc
 
 def score_multiclass(model, x_test, y_test) :
+    classes = y_test.drop_duplicates()
+
+    #sanity check, at least 3 different classes need to have been matched
+    if len(classes) <= 2:
+        print('Test-sample is too small to calculate meaningful score')
+        return -float('inf')
+
     y_pred = model.predict_proba(x_test)
 
     # Calculate the AUC-ROC score
-    # TODO: can we just use ovr here?
-    classes = y_test.drop_duplicates()
     y_true = []
     for indexVal, val in enumerate(y_test):
         new_val = []
@@ -32,16 +37,41 @@ def score_multiclass(model, x_test, y_test) :
             new_val.append(val == clazz)
         y_true.append(new_val)
 
-    #sanity check, at least 3 different classes need to have been matched
-    if len(classes) <= 2:
-        raise Exception('test-sample too small')
-
     auc_roc = roc_auc_score(y_true, y_pred, multi_class="ovr")
     print("AUC-ROC Score (multiclass):", auc_roc)
 
     return auc_roc
 
-def train_model(columns_source, column_target, df):
+def objective_function(df, solution, column_target, k, max_suppressed_fraction):
+    grouped = df.groupby(solution)
+
+    # Calculate the percentage of suppressed rows -- utility
+    total_rows = len(df)
+    suppressed_rows = sum(len(group) for group_name, group in grouped if len(group) < k)
+    suppressed_fraction = suppressed_rows / total_rows
+    print('SUPPRESSION FRACTION', suppressed_fraction)
+    #print('Total Suppressed Rows:', suppressed_rows)
+    print('Max Suppressed Fraction:', max_suppressed_fraction)
+
+
+    suppressed_fraction = round(suppressed_fraction, 2)
+    if suppressed_fraction <= max_suppressed_fraction: #+ 1e-6:
+
+        # Filter the original dataframe to remove suppressed rows
+        filtered_df = df[df.index.isin([idx for group_name, group in grouped if len(group) < k for idx in group.index])]
+        print('FILTERED DF INFO', filtered_df.info())
+
+        # Calculate and return classification accuracy as the objective function score
+        classification_accuracy = calculate_classification_accuracy(solution, column_target, filtered_df)
+        print('Classification accuracy (AUC-ROC)', classification_accuracy)
+        return classification_accuracy
+
+    else: #suppressed_fraction > max_suppressed_fraction:
+        # If the constraint is violated, return a penalty (negative infinity)
+        print('SUPPRESSION EXCEEDED LIMIT')
+        return -float('inf')
+
+def calculate_classification_accuracy(columns_source, column_target, df):
     x = df[columns_source]
     y = df[column_target]
     # Convert categorical features to strings
@@ -65,10 +95,11 @@ def train_model(columns_source, column_target, df):
     else:
         return score_binary(catboost_model, X_test, y_test)
 
-
 parser = ArgumentParser()
 parser.add_argument("-f", "--file", dest="filename", required=True)
 parser.add_argument("-cs", "--columnsSource", dest="columnsSource", nargs='+', required=True)
+parser.add_argument("-k", dest="k", required=True, type=int)
+parser.add_argument("-mS", dest="maxSuppression", required=True, type=float)
 parser.add_argument("-ct", "--columnTarget", dest="columnTarget", required=True)
 parser.add_argument("-op", "--outputPath", dest="outputPath")
 parser.add_argument("-oid", "--outputId", dest="outputId")
@@ -76,13 +107,13 @@ parser.add_argument("-oid", "--outputId", dest="outputId")
 args = parser.parse_args()
 
 rawdata = pd.read_csv(args.filename)
-score = train_model(args.columnsSource, args.columnTarget, rawdata)
+score = objective_function(rawdata, args.columnsSource, args.columnTarget, args.k, args.maxSuppression)
 
 if args.outputId is not None:
     outputfile = ''
     if args.outputPath is not None:
         outputfile += args.outputPath + "/"
     outputfile += args.outputId
-    with open(outputfile, "a") as myfile:
-        myfile.write(str(datetime.datetime.now()) + ","+ str(score) + "\n")
+    with open(outputfile, "w") as myfile:
+        myfile.write(str(datetime.datetime.now()) + ";"+ str(score) + "\n")
 
