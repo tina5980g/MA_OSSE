@@ -81,12 +81,13 @@ public class Categorizer implements InitializingBean {
     }
 
     private static int callPythonScript(String filename, String ...args) throws IOException, URISyntaxException {
-        final StringBuilder line = new StringBuilder("python3 " + resolvePythonScriptPath(filename));
+        // TODO: python runtime configurable python/python3 or something different
+        final StringBuilder line = new StringBuilder("python " + resolvePythonScriptPath(filename));
         for (String arg : args) {
             line.append(' ').append(arg);
         }
-        CommandLine cmdLine = CommandLine.parse(line.toString());
 
+        CommandLine cmdLine = CommandLine.parse(line.toString());
         // TODO: logging to file? SLF4J does not handle OutputStreams
         PumpStreamHandler streamHandler = new PumpStreamHandler(System.out);
 
@@ -98,17 +99,25 @@ public class Categorizer implements InitializingBean {
 
     @Builder
     public record ClassificationScriptArguments(String datasetFilename, List<String> solutionColumns, int equivalenceclassSize, double maxSuppression, String targetColumn, String threadId) {
-        private static final String ROOT_PATH = "./testData";
+        private static final Path ROOT_PATH;
+
+        static {
+            try {
+                ROOT_PATH = Path.of(Categorizer.class.getClassLoader().getResource("testData").toURI());
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
         private String[] toArgs() {
             String[] args = new String[7];
-            args[0] = "-f " + ROOT_PATH + "/" + datasetFilename;
+            args[0] = "-f " + ROOT_PATH.resolve(datasetFilename);
             args[1] = "-cs " + String.join(" ", solutionColumns);
             args[2] = "-k " + equivalenceclassSize;
             args[3] = "-mS " + maxSuppression;
             args[4] = "-ct " + targetColumn;
             args[5] = "-op " + ROOT_PATH;
-            args[6] = "-oid" + threadId;
+            args[6] = "-oid " + threadId;
 
             return args;
         }

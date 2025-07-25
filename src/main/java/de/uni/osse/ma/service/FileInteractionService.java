@@ -9,14 +9,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
+// TODO: all those paths need to be done better, ideally configurable
 public class FileInteractionService {
     private final ObjectMapper mapper;
 
@@ -36,7 +39,17 @@ public class FileInteractionService {
 
 
     public void writeAsCSV(final Stream<String[]> data, String filename) throws IOException {
-        var path = Paths.get("/Users/tinayau/IdeaProjects/MA_OSSE/src/main/resources/testData").resolve(filename);
+        Path path;
+        try {
+            path = Path.of(this.getClass().getClassLoader().getResource("testData").toURI()).resolve("../../../src/main/resources/testData").resolve(filename).normalize();
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
+
+        if (!Files.exists(path)) {
+            // TODO: works on different OS?
+            Files.createFile(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-rw----"))); // owner and group can read and write
+        }
 
         try(CSVWriter csvWriter = new CSVWriter(Files.newBufferedWriter(path, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE, StandardOpenOption.CREATE))) {
             data.sequential().forEach(csvWriter::writeNext);
