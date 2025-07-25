@@ -9,7 +9,8 @@ public enum DataType {
     NONIDENTIFIER(StringField.class, 1),
     STRING(StringField.class, 1),
     YEAR(YearField.class, 3),
-    DATE(DateField.class, 4);
+    DATE(DateField.class, 4),
+    INT_AMOUNT_CURRENCY(IntegerField.class, 6);
 
     private final Class<? extends DataField<?>> representingClass;
     private final int maxObfuscation;
