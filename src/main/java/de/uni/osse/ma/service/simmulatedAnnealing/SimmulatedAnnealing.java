@@ -38,6 +38,7 @@ public class SimmulatedAnnealing {
     }
 
     public Solution calcLocalOptimumSolution() throws Exception {
+        // TODO: remove previous score-file, if it exists
         // initial Solution
         Solution nextSolution = new Solution(keyList.stream().collect(Collectors.toMap(
                 Function.identity(),                        // key
@@ -47,7 +48,7 @@ public class SimmulatedAnnealing {
         ));
 
         Solution currentSolution = nextSolution;
-        Solution globalBestSolution = nextSolution;
+        Solution allTimeBestSolution = nextSolution;
 
         double currentTemperature = 1000;
         final double minTemperature = 0.001;
@@ -74,8 +75,8 @@ public class SimmulatedAnnealing {
             // For the first iteration, we compare the initial solution with itself. Just a nice sideeffect
             if (nextSolution.getScore().compareTo(currentSolution.getScore()) >= 0) {
                 currentSolution = nextSolution;
-                if (nextSolution.getScore().compareTo(globalBestSolution.getScore()) >= 0) {
-                    globalBestSolution = nextSolution;
+                if (nextSolution.getScore().compareTo(allTimeBestSolution.getScore()) >= 0) {
+                    allTimeBestSolution = nextSolution;
                 }
                 hasChanged = true;
             } else {
@@ -102,7 +103,7 @@ public class SimmulatedAnnealing {
             }
         }
 
-        return globalBestSolution;
+        return allTimeBestSolution;
     }
 
     private List<String> solutionToPythonArg(Solution solution) {
@@ -112,7 +113,7 @@ public class SimmulatedAnnealing {
     }
 
     private Solution nextSolution(Solution currentSolution) throws NoMoreIterationsException {
-        HeaderInfo headerInfoToChange = keyList.get(RANDOM.nextInt(keyList.size() + 1));
+        HeaderInfo headerInfoToChange = keyList.get(RANDOM.nextInt(keyList.size()));
         for(int i = 0; i< findSolutionMaxRetries; i++) {
             Integer newObfuscation = RANDOM.nextInt(headerInfoToChange.dataType().getMaxObfuscation());
             // this guarantees that we don't get the same obfuscation again

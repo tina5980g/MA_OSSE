@@ -1,6 +1,7 @@
 package de.uni.osse.ma.service.simmulatedAnnealing;
 
 
+import de.uni.osse.ma.service.FileInteractionService;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.exec.CommandLine;
@@ -48,13 +49,10 @@ public class Categorizer implements InitializingBean {
             return BigDecimal.ONE.negate();
         }
         // python writes the score to a file from which we read the score
-        URL resourceURL = Categorizer.class.getClassLoader().getResource(ClassificationScriptArguments.ROOT_PATH + "/" + args.threadId());
-        if (resourceURL == null) {
-            throw new FileNotFoundException("Failed to load classification score file '" + args.threadId() + "'");
-        }
-        try (BufferedReader input = new BufferedReader(new FileReader(new File(resourceURL.toURI())))) {
+        Path resultPath = args.getResultFile();
+        try (BufferedReader input = new BufferedReader(new FileReader(resultPath.toFile()))) {
             String lastResult = input.readLine();
-            if (lastResult.split(";").length != 2) {
+            if (lastResult.split(";").length != 4) {
                 log.error("Invalid format: {}", lastResult);
                 // TODO: proper exception
                 throw new Exception("Scoring result for '" + args.threadId() + "' has invalid format.");
@@ -99,14 +97,10 @@ public class Categorizer implements InitializingBean {
 
     @Builder
     public record ClassificationScriptArguments(String datasetFilename, List<String> solutionColumns, int equivalenceclassSize, double maxSuppression, String targetColumn, String threadId) {
-        private static final Path ROOT_PATH;
+        private static final Path ROOT_PATH = FileInteractionService.getRootPath();
 
-        static {
-            try {
-                ROOT_PATH = Path.of(Categorizer.class.getClassLoader().getResource("testData").toURI());
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(e);
-            }
+        public Path getResultFile() {
+            return ROOT_PATH.resolve(threadId());
         }
 
         private String[] toArgs() {

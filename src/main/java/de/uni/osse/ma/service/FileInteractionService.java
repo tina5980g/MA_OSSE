@@ -6,10 +6,10 @@ import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvException;
 import de.uni.osse.ma.rs.dto.HeadersDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -19,9 +19,21 @@ import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 // TODO: all those paths need to be done better, ideally configurable
 public class FileInteractionService {
     private final ObjectMapper mapper;
+
+    public static Path getRootPath() {
+        try {
+            return Path.of(FileInteractionService.class.getClassLoader().getResource("testData").toURI()).resolve("../../../src/main/resources/testData").normalize();
+        } catch (Throwable e) {
+            log.error("Unrecoverable configuration error. Can't determine Root-Path for files!", e);
+            // No way to recover from there
+            System.exit(3);
+            return null;
+        }
+    }
 
     public List<String[]> readLocalTestData(String filename) throws IOException, CsvException {
         try(var inputStream = new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("testData/"+ filename))) {
@@ -39,13 +51,7 @@ public class FileInteractionService {
 
 
     public void writeAsCSV(final Stream<String[]> data, String filename) throws IOException {
-        Path path;
-        try {
-            path = Path.of(this.getClass().getClassLoader().getResource("testData").toURI()).resolve("../../../src/main/resources/testData").resolve(filename).normalize();
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
-        }
-
+        Path path = getRootPath().resolve(filename);
         if (!Files.exists(path)) {
             // TODO: works on different OS?
             Files.createFile(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-rw----"))); // owner and group can read and write

@@ -8,6 +8,8 @@ from argparse import ArgumentParser
 import numpy as np
 import datetime
 
+# https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+pd.options.mode.copy_on_write = True
 
 class ProblemType(Enum):
     BINARY = 1
@@ -62,8 +64,6 @@ def suppress(data, relevant_columns, minimum_occurences):
     return data[~data.index.isin(filtered_debug)]
 
 def objective_function(df, solution, column_target, k, max_suppressed_fraction):
-    grouped = df.groupby(solution)
-
     # Calculate the percentage of suppressed rows -- utility
     total_rows = len(df)
     print('total rows ', total_rows)
@@ -174,6 +174,7 @@ if args.outputId is not None:
     if args.outputPath is not None:
         outputfile += args.outputPath + "/"
     outputfile += args.outputId
+    print('writing to ', outputfile)
     with open(outputfile, "w") as myfile:
-        myfile.write(str(datetime.datetime.now()) + ";"+ str(score) + "\n")
+        myfile.write("{datetime};{score};{solution};{target}\n".format(datetime=str(datetime.datetime.now()),score=str(score), solution=args.columnsSource, target=args.columnTarget))
 
