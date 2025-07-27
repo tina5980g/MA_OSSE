@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.PumpStreamHandler;
+import org.apache.commons.io.input.ReversedLinesFileReader;
 import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -50,14 +52,18 @@ public class Categorizer implements InitializingBean {
         }
         // python writes the score to a file from which we read the score
         Path resultPath = args.getResultFile();
-        try (BufferedReader input = new BufferedReader(new FileReader(resultPath.toFile()))) {
-            String lastResult = input.readLine();
+        ReversedLinesFileReader.Builder builder = ReversedLinesFileReader.builder()
+                .setPath(resultPath)
+                .setCharset(StandardCharsets.UTF_8);
+        try (ReversedLinesFileReader reverseReader = builder.get()) {
+            String lastResult = reverseReader.readLine();
             if (lastResult.split(";").length != 4) {
                 log.error("Invalid format: {}", lastResult);
                 // TODO: proper exception
                 throw new Exception("Scoring result for '" + args.threadId() + "' has invalid format.");
             }
             String score = lastResult.split(";")[1];
+            log.debug("{} scored {}", String.join(", ", args.solutionColumns()), score);
             if (score.equals("-inf")) {
                 return BigDecimal.ONE.negate();
             }

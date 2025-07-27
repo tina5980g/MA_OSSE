@@ -1,15 +1,16 @@
 package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 
-import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
-
-public abstract class DataField<T> {
-    protected final T internalValue;
+public abstract class DataField<T> implements Obfuscutable {
+    protected T internalValue;
 
     public DataField(String rawValue) {
         this.internalValue = parse(rawValue);
     }
 
+    /** deferred initialization */
+    protected DataField() {
+    }
+
     protected abstract T parse(String rawValue);
-    public abstract String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException;
 }

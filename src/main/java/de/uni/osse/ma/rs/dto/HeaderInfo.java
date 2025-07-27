@@ -5,12 +5,10 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 
 @Builder
-// TODO: sufficient serialization?
-public record HeaderInfo(@Nonnull String columnName, @Nonnull String columnIdentifier, @Nullable DataType dataType, @Nonnull ColumnType columnType) implements Serializable {
+public record HeaderInfo(@Nonnull String columnName, @Nonnull String columnIdentifier, @Nullable DataType dataType, @Nonnull ColumnType columnType) {
 
 
     public HeaderInfo {

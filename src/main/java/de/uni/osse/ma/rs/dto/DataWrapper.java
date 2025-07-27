@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 @Getter
 public class DataWrapper {
     private final List<HeaderInfo> headers;
+    // TODO: can this also be Stream based?
     private final List<List<DataField<?>>> rows;
 
     public DataWrapper(List<String[]> csvValues, HeadersDto headersDto) {
