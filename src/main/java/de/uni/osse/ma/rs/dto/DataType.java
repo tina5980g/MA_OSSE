@@ -3,9 +3,10 @@ package de.uni.osse.ma.rs.dto;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.*;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.enums.CountryField;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.enums.SexField;
+import lombok.AccessLevel;
 import lombok.Getter;
 
-@Getter
+@Getter(AccessLevel.PACKAGE)
 public enum DataType {
     IDENTIFIER(IdentifyingField.class,0),
     NONIDENTIFIER(StringField.class, 1),

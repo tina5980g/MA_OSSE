@@ -21,9 +21,15 @@ public class Preprocessor {
 
         for (int i = 0; i < dataWrapper.getHeaders().size(); i++) {
             final HeaderInfo curHeader = headers[i];
-            for (int j = 0; j <= curHeader.dataType().getMaxObfuscation(); j++) {
-                csvHeaders.add(curHeader.columnName() + "_" + j);
+            switch (curHeader.obfuscationInfo().strategy()) {
+                case STATIC -> {
+                    for (int j = 0; j <= dataWrapper.maxObfuscationFor(curHeader); j++) {
+                        csvHeaders.add(curHeader.columnName() + "_" + j);
+                    }
+                }
+                case PROVIDED -> csvHeaders.add(curHeader.columnName() + "_" + curHeader.obfuscationInfo().level());
             }
+
         }
 
         // Stream.of defaults to vararg
@@ -34,9 +40,16 @@ public class Preprocessor {
                     List<String> results = new ArrayList<>();
                     for (int fieldIndex = 0; fieldIndex < dataFields.size(); fieldIndex++) {
                         final HeaderInfo curHeader = headers[fieldIndex];
-                        for (int levelIndex = 0; levelIndex <= curHeader.dataType().getMaxObfuscation(); levelIndex++) {
-                            results.add(dataFields.get(fieldIndex).representWithObfuscation(levelIndex));
+                        switch (curHeader.obfuscationInfo().strategy()) {
+                            case STATIC -> {
+                                for (int levelIndex = 0; levelIndex <= dataWrapper.maxObfuscationFor(curHeader); levelIndex++) {
+                                    results.add(dataFields.get(fieldIndex).representWithObfuscation(levelIndex));
+                                }
+                            }
+                            // caller provides the levels, so we don't need to add additional columns for different levels.
+                            case PROVIDED -> results.add(dataFields.get(fieldIndex).representWithObfuscation(0));
                         }
+
                     }
                     return results.toArray(String[]::new);
                 });

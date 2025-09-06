@@ -23,14 +23,27 @@ public record HeadersDto(List<HeaderInfo> columns) {
         if (!duplicates.isEmpty()) {
             throw new IllegalArgumentException("Found a duplicate description for columns " + String.join(", ", duplicates));
         }
+    }
 
-        // ensure that we have at least one pseudo identifier and at least one target
-        var columnTypes = columns.stream().map(HeaderInfo::columnType).distinct().toList();
-        if (!columnTypes.contains(ColumnType.PSEUDO_IDENTIFIER)) {
-            throw new IllegalArgumentException("no pseudo-identifier column found");
+    public int maxObfuscationFor(HeaderInfo column) {
+        return maxObfuscationFor(column.columnName());
+    }
+
+    public int maxObfuscationFor(String columnName) {
+        List<HeaderInfo> list = columns.stream().filter(headerInfo -> headerInfo.columnName().equals(columnName)).toList();
+        if (list.isEmpty()) {
+            throw new IllegalArgumentException("No column with name " + columnName + " found");
         }
-        if (!columnTypes.contains(ColumnType.CLASSIFICATION_TARGET)) {
-            throw new IllegalArgumentException("no classification target column found");
-        }
+        HeaderInfo headerInfo = list.getFirst();
+        return switch (headerInfo.obfuscationInfo().strategy()) {
+            case STATIC -> {
+                if (list.size() == 1) {
+                    yield headerInfo.dataType().getMaxObfuscation();
+                }
+                throw new IllegalStateException("Found more than one column with name " + columnName + " on STATIC strategy");
+            }
+            case PROVIDED -> list.size() - 1;
+        };
+
     }
 }

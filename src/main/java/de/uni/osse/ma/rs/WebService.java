@@ -82,7 +82,7 @@ public class WebService {
                 if (featureColumns.contains(headerInfo.columnName())) {
                     return headerInfo;
                 }
-                return new HeaderInfo(headerInfo.columnName(), headerInfo.columnIdentifier(), DataType.IGNORE, ColumnType.PSEUDO_IDENTIFIER);
+                return new HeaderInfo(headerInfo.columnName(), headerInfo.columnIdentifier(), new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.IGNORE, null));
             }).toList());
         }
 

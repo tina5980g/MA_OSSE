@@ -7,20 +7,27 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-@Getter
 public class DataWrapper {
+    private final HeadersDto headersDto;
+    @Getter
     private final List<HeaderInfo> headers;
     // TODO: can this also be Stream based?
+    @Getter
     private final List<List<DataField<?>>> rows;
 
     public DataWrapper(List<String[]> csvValues, HeadersDto headersDto) {
-        final String[] headers = csvValues.getFirst();
+        this.headersDto = headersDto;
+        final String[] csvHeaders = csvValues.getFirst();
         var rawValues = csvValues.subList(1, csvValues.size());
-        Map<String, Optional<HeaderInfo>> headerMapping = Arrays.stream(headers)
+        Map<String, Optional<HeaderInfo>> headerMapping = Arrays.stream(csvHeaders)
                 .collect(
                         Collectors.toMap(
                                 Function.identity(),
-                                headerId -> headersDto.columns().stream().filter(header -> header.columnIdentifier().equalsIgnoreCase(headerId)).findAny()));
+                                headerId -> headersDto.columns().stream()
+                                        .filter(header -> header.columnIdentifier().equalsIgnoreCase(headerId))
+                                        .findAny()
+                                ));
+
 
 
         List<String> unknownHeaders = headerMapping.entrySet().stream().filter(entry -> entry.getValue().isEmpty()).map(Map.Entry::getKey).toList();
@@ -28,7 +35,7 @@ public class DataWrapper {
             throw new IllegalArgumentException("Not all columns of the CSV are mapped into known headerInfo: " + String.join(", ", unknownHeaders));
         }
         // we checked previously that no empty optionals exist in the complete mapping
-        this.headers = Arrays.stream(headers).sequential().map(headerMapping::get).map(Optional::get).toList();
+        this.headers = Arrays.stream(csvHeaders).sequential().map(headerMapping::get).map(Optional::get).toList();
 
         try {
             List<List<DataField<?>>> list = new ArrayList<>();
@@ -44,5 +51,9 @@ public class DataWrapper {
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to parse CSV with the given type information", e);
         }
+    }
+
+    public int maxObfuscationFor(HeaderInfo column) {
+        return this.headersDto.maxObfuscationFor(column);
     }
 }

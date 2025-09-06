@@ -2,6 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing;
 
 import de.uni.osse.ma.rs.dto.HeaderInfo;
 import de.uni.osse.ma.rs.dto.HeadersDto;
+import de.uni.osse.ma.rs.dto.ObfuscationInfo;
 import de.uni.osse.ma.service.FileInteractionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,16 +39,19 @@ public class SimulatedAnnealing {
 
         final List<HeaderInfo> keyList = headerSource.columns().stream() // For easier random access 
                 // IDENTIFIER can not be reasonably obfuscated, if they are part of the dataset
-                .filter(headerInfo -> headerInfo.dataType().getMaxObfuscation() > 0)
+                .filter(headerInfo -> headerSource.maxObfuscationFor(headerInfo) > 0)
                 // classificationTarget is not a valid source for further obfuscations
                 .filter(headerInfo -> !classificationTarget.contains(headerInfo.columnName()))
+                // PROVIDED strategy results in multiple HeaderInfo for the same columnName. We select the one with level == 0
+                // With Strategy PROVIDED, an obfuscationLevel must exist (see the constructor of ObfuscationInfo)
+                .filter(headerInfo -> headerInfo.obfuscationInfo().strategy() != ObfuscationInfo.ObfuscationStrategy.PROVIDED || headerInfo.obfuscationInfo().level() <= 0)
                 .toList();
 
 
         // initial Solution
         Solution currentSolution = new Solution(keyList.stream().collect(Collectors.toMap(
                 Function.identity(),                        // key
-                headerInfo -> RANDOM.nextInt((headerInfo).dataType().getMaxObfuscation() + 1),     // value
+                headerInfo -> RANDOM.nextInt(headerSource.maxObfuscationFor(headerInfo) + 1),     // value
                 (key1, _) -> key1,        // conflict merger, dummy
                 HashMap::new)                               // supplier
         ));
@@ -64,7 +68,7 @@ public class SimulatedAnnealing {
             boolean hasChanged = false;
 
             // find next candidate
-            final Solution nextSolution = history.isEmpty() ? currentSolution : nextSolution(currentSolution, keyList);
+            final Solution nextSolution = history.isEmpty() ? currentSolution : nextSolution(headerSource, currentSolution, keyList);
             final Optional<Solution> historicalSolution = history.stream()
                     .filter(sol -> Objects.equals(sol.getAnonymityLevels(), nextSolution.getAnonymityLevels()))
                     .findAny(); // there should only ever be one match
@@ -73,7 +77,7 @@ public class SimulatedAnnealing {
                 // this solution was already scored. To save on computation time, we don't calculate the score again
                 nextSolution.setScore(historicalSolution.get().getScore());
             } else if (nextSolution.getAnonymityLevels().entrySet().stream().allMatch(headerInfoIntegerEntry -> 
-                headerInfoIntegerEntry.getValue() == headerInfoIntegerEntry.getKey().dataType().getMaxObfuscation()
+                headerInfoIntegerEntry.getValue() == (headerSource.maxObfuscationFor(headerInfoIntegerEntry.getKey()))
             )) {
                 // all maximum obfuscations -> CatBoost will error
                 nextSolution.setScore(BigDecimal.ONE.negate());
@@ -125,9 +129,9 @@ public class SimulatedAnnealing {
         ).toList();
     }
 
-    private Solution nextSolution(Solution currentSolution, final List<HeaderInfo> keyList) {
+    private Solution nextSolution(HeadersDto headerSource, Solution currentSolution, final List<HeaderInfo> keyList) {
         HeaderInfo headerInfoToChange = keyList.get(RANDOM.nextInt(keyList.size()));
-        Integer newObfuscation = RANDOM.nextInt(headerInfoToChange.dataType().getMaxObfuscation());
+        Integer newObfuscation = RANDOM.nextInt(headerSource.maxObfuscationFor(headerInfoToChange));
         // this guarantees that we don't get the same obfuscation again
         if (newObfuscation >= currentSolution.getAnonymityLevels().get(headerInfoToChange)) {
             newObfuscation++;
