@@ -13,7 +13,8 @@ public class YearField extends IntegerField {
             case 0 -> this.internalValue.toString();
             case 1 -> intoInterval(5);
             case 2 -> intoInterval(10);
-            case 3 -> "*";
+            case 3 -> intoInterval(20);
+            case 4 -> "*";
             default -> throw new NoMoreAnonymizationLevelsException(level);
         };
     }

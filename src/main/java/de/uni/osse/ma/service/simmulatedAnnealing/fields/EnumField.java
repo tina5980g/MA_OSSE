@@ -11,8 +11,12 @@ public class EnumField<T extends Enum<T> & Obfuscutable> extends DataField<T> {
         this.internalValue = parse(rawValue);
     }
 
+    /* Deferred initialization */
+    public EnumField() {
+    }
+
     protected T parse(String rawValue) throws IllegalArgumentException {
-        return Enum.valueOf(clazz, rawValue.toUpperCase());
+        return Enum.valueOf(clazz, rawValue.toUpperCase().replaceAll("-", "_"));
     }
 
     @Override
