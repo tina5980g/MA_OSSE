@@ -1,6 +1,5 @@
 package de.uni.osse.ma.service.simmulatedAnnealing;
 
-
 import de.uni.osse.ma.service.FileInteractionService;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -97,12 +96,13 @@ public class Categorizer implements InitializingBean {
 
         DefaultExecutor executor = new DefaultExecutor();
         executor.setStreamHandler(streamHandler);
+        log.debug("calling script with {}", cmdLine);
 
         return executor.execute(cmdLine);
     }
 
     @Builder
-    public record ClassificationScriptArguments(String datasetFilename, List<String> solutionColumns, int equivalenceclassSize, double maxSuppression, String targetColumn, String threadId) {
+    public record ClassificationScriptArguments(String datasetFilename, List<String> solutionColumns, int equivalenceclassSize, BigDecimal maxSuppression, String targetColumn, String threadId) {
         private static final Path ROOT_PATH = FileInteractionService.getRootPath();
 
         public Path getResultFile() {

@@ -4,6 +4,9 @@ import de.uni.osse.ma.rs.dto.HeaderInfo;
 import de.uni.osse.ma.rs.dto.HeadersDto;
 import de.uni.osse.ma.rs.dto.ObfuscationInfo;
 import de.uni.osse.ma.service.FileInteractionService;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
@@ -32,16 +35,16 @@ public class SimulatedAnnealing {
 
     @Async
     // TODO: prevent multiple running for the same dataIdentifier at the same time
-    public void calcLocalOptimumSolution(String dataIdentifier, HeadersDto headerSource, String classificationTarget, String solutionIdentifier) throws Exception {
+    public void calcLocalOptimumSolution(Parameters parameters) throws Exception {
         // TODO: remove previous score-file, if it exists
         final Set<Solution> history = new HashSet<>();
-        final String dataSource = fileInteractionService.getPathToFile(dataIdentifier, FILE_TYPE.PROCESSED_DATA_SET).toString();
+        final String dataSource = fileInteractionService.getPathToFile(parameters.dataIdentifier(), FILE_TYPE.PROCESSED_DATA_SET).toString();
 
-        final List<HeaderInfo> keyList = headerSource.columns().stream() // For easier random access 
+        final List<HeaderInfo> keyList = parameters.headerSource().columns().stream() // For easier random access
                 // IDENTIFIER can not be reasonably obfuscated, if they are part of the dataset
-                .filter(headerInfo -> headerSource.maxObfuscationFor(headerInfo) > 0)
+                .filter(headerInfo -> parameters.headerSource().maxObfuscationFor(headerInfo) > 0)
                 // classificationTarget is not a valid source for further obfuscations
-                .filter(headerInfo -> !classificationTarget.contains(headerInfo.columnName()))
+                .filter(headerInfo -> !parameters.classificationTarget().contains(headerInfo.columnName()))
                 // PROVIDED strategy results in multiple HeaderInfo for the same columnName. We select the one with level == 0
                 // With Strategy PROVIDED, an obfuscationLevel must exist (see the constructor of ObfuscationInfo)
                 .filter(headerInfo -> headerInfo.obfuscationInfo().strategy() != ObfuscationInfo.ObfuscationStrategy.PROVIDED || headerInfo.obfuscationInfo().level() <= 0)
@@ -51,7 +54,7 @@ public class SimulatedAnnealing {
         // initial Solution
         Solution currentSolution = new Solution(keyList.stream().collect(Collectors.toMap(
                 Function.identity(),                        // key
-                headerInfo -> RANDOM.nextInt(headerSource.maxObfuscationFor(headerInfo) + 1),     // value
+                headerInfo -> RANDOM.nextInt(parameters.headerSource().maxObfuscationFor(headerInfo) + 1),     // value
                 (key1, _) -> key1,        // conflict merger, dummy
                 HashMap::new)                               // supplier
         ));
@@ -59,7 +62,7 @@ public class SimulatedAnnealing {
 
         double currentTemperature = 1000;
         final double minTemperature = 0.001;
-        final double coolingRate = 0.1;
+        final double coolingRate = 0.8;
 
         int maxIterationsWithoutImprovement = 8;
         int iterationsWithoutImprovement = 0;
@@ -68,7 +71,7 @@ public class SimulatedAnnealing {
             boolean hasChanged = false;
 
             // find next candidate
-            final Solution nextSolution = history.isEmpty() ? currentSolution : nextSolution(headerSource, currentSolution, keyList);
+            final Solution nextSolution = history.isEmpty() ? currentSolution : nextSolution(parameters.headerSource(), currentSolution, keyList);
             final Optional<Solution> historicalSolution = history.stream()
                     .filter(sol -> Objects.equals(sol.getAnonymityLevels(), nextSolution.getAnonymityLevels()))
                     .findAny(); // there should only ever be one match
@@ -77,7 +80,7 @@ public class SimulatedAnnealing {
                 // this solution was already scored. To save on computation time, we don't calculate the score again
                 nextSolution.setScore(historicalSolution.get().getScore());
             } else if (nextSolution.getAnonymityLevels().entrySet().stream().allMatch(headerInfoIntegerEntry -> 
-                headerInfoIntegerEntry.getValue() == (headerSource.maxObfuscationFor(headerInfoIntegerEntry.getKey()))
+                headerInfoIntegerEntry.getValue() == (parameters.headerSource().maxObfuscationFor(headerInfoIntegerEntry.getKey()))
             )) {
                 // all maximum obfuscations -> CatBoost will error
                 nextSolution.setScore(BigDecimal.ONE.negate());
@@ -86,9 +89,9 @@ public class SimulatedAnnealing {
             } else {
                 BigDecimal score = categorizer.scoreModelAccurary(new Categorizer.ClassificationScriptArguments.ClassificationScriptArgumentsBuilder()
                         .datasetFilename(dataSource)
-                        .equivalenceclassSize(2)
-                        .maxSuppression(0.1)
-                        .targetColumn(classificationTarget)
+                        .equivalenceclassSize(parameters.kLevel())
+                        .maxSuppression(parameters.maxSuppression())
+                        .targetColumn(parameters.classificationTarget())
                         .solutionColumns(solutionToPythonArg(nextSolution))
                 );
 
@@ -119,8 +122,11 @@ public class SimulatedAnnealing {
             }
         }
 
-        fileInteractionService.writeSolution(dataIdentifier, solutionIdentifier, allTimeBestSolution);
-        log.info("DONE!");
+        fileInteractionService.writeSolution(parameters.dataIdentifier(), parameters.solutionIdentifier(), allTimeBestSolution);
+        final long totalSolutions = keyList.stream()
+                .map(info -> parameters.headerSource().maxObfuscationFor(info.columnName()) + 1)
+                .reduce((a,b) -> a*b).orElse(1);
+        log.info("DONE! Scored {} out of {} Solutions ({}%)", history.size(), totalSolutions, ((double) history.size()) / totalSolutions);
     }
 
     private List<String> solutionToPythonArg(Solution solution) {
@@ -141,5 +147,18 @@ public class SimulatedAnnealing {
         nextSolution.getAnonymityLevels().put(headerInfoToChange, newObfuscation);
 
         return nextSolution;
+    }
+
+    public record Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String solutionIdentifier, @Nonnull String classificationTarget, @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) {
+
+        @Builder
+        public Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String solutionIdentifier, @Nonnull String classificationTarget, @Nullable Integer kLevel, @Nullable BigDecimal maxSuppression) {
+            this.dataIdentifier = dataIdentifier;
+            this.headerSource = headerSource;
+            this.solutionIdentifier = solutionIdentifier;
+            this.classificationTarget = classificationTarget;
+            this.kLevel = Objects.requireNonNullElse(kLevel, 2);
+            this.maxSuppression = Objects.requireNonNullElse(maxSuppression, BigDecimal.valueOf(1, 1));
+        }
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,6 +61,8 @@ public class WebService {
     @GetMapping("/strategy/{dataIdentifier}")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public String getStrategy(@PathVariable("dataIdentifier") String dataIdentifier,
+                                                @RequestParam(name="k", required = false) Integer kLevel,
+                                                @RequestParam(name="maxSuppression", required = false) String maxSuppression,
                                                 @RequestParam(name="featureColumns", required = false) List<String> featureColumns,
                                                 @RequestParam(name = "targetColumn") String targetColumn) throws Exception {
         var data = fileInteractionService.readStoredDatasetValue(dataIdentifier);
@@ -72,23 +75,45 @@ public class WebService {
             var processedData = preprocessor.addObfusccations(wrapper);
             fileInteractionService.writeProcessedCSV(processedData, dataIdentifier);
         }        
-        
-        if (CollectionUtils.isNotEmpty(featureColumns)) {
-            // Dirty, but works
-            fieldMetadata = new HeadersDto(fieldMetadata.columns().stream().map(headerInfo -> {
-                if (targetColumn.contains(headerInfo.columnName())) {
-                    return headerInfo;
-                }
-                if (featureColumns.contains(headerInfo.columnName())) {
-                    return headerInfo;
-                }
-                return new HeaderInfo(headerInfo.columnName(), headerInfo.columnIdentifier(), new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.IGNORE, null));
-            }).toList());
-        }
+
+        // Dirty, but works
+        fieldMetadata = new HeadersDto(fieldMetadata.columns().stream().map(headerInfo -> {
+            if (CollectionUtils.isNotEmpty(featureColumns) && featureColumns.contains(headerInfo.columnName())) {
+                return headerInfo;
+            }
+            if (CollectionUtils.isEmpty(featureColumns) && !targetColumn.contains(headerInfo.columnName())) {
+                return headerInfo;
+            }
+            return new HeaderInfo(headerInfo.columnName(), headerInfo.columnIdentifier(), new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.IGNORE, null));
+        }).toList());
 
         final String solutionIdentifier = UUID.randomUUID().toString();
         fileInteractionService.writeSolution(dataIdentifier, solutionIdentifier, null);
-        simulatedAnnealing.calcLocalOptimumSolution(dataIdentifier, fieldMetadata, targetColumn, solutionIdentifier);
+        BigDecimal maxSuppressionValue = null;
+        if (maxSuppression != null) {
+            try {
+                maxSuppressionValue = new BigDecimal(maxSuppression);
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid max suppression value: " + maxSuppression);
+            }
+        }
+        SimulatedAnnealing.Parameters.builder()
+                .dataIdentifier(dataIdentifier)
+                .headerSource(fieldMetadata)
+                .classificationTarget(targetColumn)
+                .solutionIdentifier(solutionIdentifier)
+                .kLevel(kLevel)
+                .maxSuppression(maxSuppressionValue)
+                .build();
+
+        simulatedAnnealing.calcLocalOptimumSolution(SimulatedAnnealing.Parameters.builder()
+                .dataIdentifier(dataIdentifier)
+                .headerSource(fieldMetadata)
+                .classificationTarget(targetColumn)
+                .solutionIdentifier(solutionIdentifier)
+                .kLevel(kLevel)
+                .maxSuppression(maxSuppressionValue)
+                .build());
         
         return solutionIdentifier;
     }

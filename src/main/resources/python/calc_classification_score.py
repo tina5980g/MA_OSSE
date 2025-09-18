@@ -20,10 +20,15 @@ class ProblemType(Enum):
 def score_binary(model, x_test, y_test):
     # Predict on the testing data
     y_pred = model.predict(x_test)
-    y_score = list(map(lambda predicted_value: predicted_value[0] == y_test.iloc[0], y_pred.tolist()))
-    y_true = list(map(lambda predicted_value: predicted_value == y_test.iloc[0], y_test.tolist()))
+
+    true_val = y_test.iloc[0]
+
+    # Convert labels to binary values (0 and 1)
+    y_test_binary = np.where(y_test == true_val, 1, 0)
+    y_pred_binary = np.where(y_pred == true_val, 1, 0)
+
     # Calculate the AUC-ROC score
-    auc_roc = roc_auc_score(y_true, y_score)
+    auc_roc = roc_auc_score(y_test_binary, y_pred_binary)
     print("AUC-ROC Score (binary):", auc_roc)
 
     return auc_roc
@@ -148,7 +153,7 @@ def calculate_classification_accuracy(columns_source, column_target, df, problem
         y = df[column_target]
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_seed)
 
-        catboost_model = CatBoostClassifier(iterations=5, depth=2, learning_rate=0.1, loss_function='logloss', cat_features=list(categorical_features_indices), task_type='CPU', devices='0')
+        catboost_model = CatBoostClassifier(iterations=150, depth=10, learning_rate=0.1, loss_function='Logloss', cat_features=list(categorical_features_indices))
         catboost_model.fit(X=x_train,y=y_train)
         return score_binary(catboost_model, x_test, y_test)
 
