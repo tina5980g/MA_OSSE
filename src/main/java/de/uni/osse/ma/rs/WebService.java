@@ -1,5 +1,6 @@
 package de.uni.osse.ma.rs;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.uni.osse.ma.rs.dto.*;
 import de.uni.osse.ma.service.FileInteractionService;
 import de.uni.osse.ma.service.simmulatedAnnealing.*;
@@ -12,10 +13,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -27,44 +31,46 @@ public class WebService {
     private final Preprocessor preprocessor;
     private final FileInteractionService fileInteractionService;
     private final SimulatedAnnealing simulatedAnnealing;
+    private final ObjectMapper objectMapper;
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public UploadResponseDto uploadDataset(
-            @RequestParam(name = "data", required = false) MultipartFile dataFile,
-                                           @RequestParam(name = "headers", required = false) MultipartFile headerFile,
+    @PostMapping(value = "/upload/dataset", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UploadResponseDto uploadDataset(@RequestParam(name = "data") MultipartFile dataFile,
                                            @RequestParam(name = "dataIdentifier", required = false) String dataIdentifier) {
-        if ((dataFile == null || dataFile.isEmpty()) && (headerFile == null || headerFile.isEmpty())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required parameters. At least one of 'data' or 'header' file need to exist");
+
+        UUID identifier;
+
+        try (InputStream stream = dataFile.getInputStream()) {
+            identifier = fileInteractionService.writeDatasetFile(stream, dataIdentifier, FILE_TYPE.DATA_SET);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read or store data file.", e);
         }
 
-        UUID identifier = null;
 
-        if (dataFile != null && !dataFile.isEmpty()) {
-            try (InputStream stream = dataFile.getInputStream()){
-                identifier = fileInteractionService.writeDatasetFile(stream, dataIdentifier, FILE_TYPE.DATA_SET);
-            } catch (IOException e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read or store data file.", e);
-            }
-        }
-
-        if (headerFile != null && !headerFile.isEmpty()) {
-            try (InputStream stream = headerFile.getInputStream()){
-                identifier = fileInteractionService.writeDatasetFile(stream, identifier == null ? dataIdentifier : identifier.toString(), FILE_TYPE.HEADER_DATA);
-            } catch (IOException e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read or store header file.", e);
-            }
-        }
-
-        return new UploadResponseDto(identifier);
+        return new UploadResponseDto(identifier, identifier == null || Objects.equals(identifier.toString(), dataIdentifier));
     }
+
+    @PostMapping(value = "/upload/headers", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public UploadResponseDto uploadHeaders(@RequestBody HeadersDto headerFile,
+                                           @RequestParam(name = "dataIdentifier", required = false) String dataIdentifier) {
+        UUID identifier;
+
+        try (InputStream stream = new ByteArrayInputStream(objectMapper.writeValueAsString(headerFile).getBytes(StandardCharsets.UTF_8))) {
+            identifier = fileInteractionService.writeDatasetFile(stream, dataIdentifier, FILE_TYPE.HEADER_DATA);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read or store header file.", e);
+        }
+
+        return new UploadResponseDto(identifier, identifier == null || Objects.equals(identifier.toString(), dataIdentifier));
+    }
+
 
     @GetMapping("/strategy/{dataIdentifier}")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public String getStrategy(@PathVariable("dataIdentifier") String dataIdentifier,
-                                                @RequestParam(name="k", required = false) Integer kLevel,
-                                                @RequestParam(name="maxSuppression", required = false) String maxSuppression,
-                                                @RequestParam(name="featureColumns", required = false) List<String> featureColumns,
-                                                @RequestParam(name = "targetColumn") String targetColumn) throws Exception {
+                              @RequestParam(name = "k", required = false) Integer kLevel,
+                              @RequestParam(name = "maxSuppression", required = false) String maxSuppression,
+                              @RequestParam(name = "featureColumns", required = false) List<String> featureColumns,
+                              @RequestParam(name = "targetColumn") String targetColumn) throws Exception {
         var data = fileInteractionService.readStoredDatasetValue(dataIdentifier);
         var fieldMetadata = fileInteractionService.readStoredHeaderDataValue(dataIdentifier);
 
@@ -74,7 +80,7 @@ public class WebService {
             final DataWrapper wrapper = new DataWrapper(data, fieldMetadata);
             var processedData = preprocessor.addObfusccations(wrapper);
             fileInteractionService.writeProcessedCSV(processedData, dataIdentifier);
-        }        
+        }
 
         // Dirty, but works
         fieldMetadata = new HeadersDto(fieldMetadata.columns().stream().map(headerInfo -> {
@@ -114,10 +120,10 @@ public class WebService {
                 .kLevel(kLevel)
                 .maxSuppression(maxSuppressionValue)
                 .build());
-        
+
         return solutionIdentifier;
     }
-    
+
     // String representation of a Solution (Solution contains a map, so Jackson gets confused when deserializing
     @GetMapping("/strategy/{dataIdentifier}/{solutionIdentifier}")
     public String getSolution(@PathVariable("dataIdentifier") String dataIdentifier, @PathVariable("solutionIdentifier") String solutionIdentifier) throws Exception {

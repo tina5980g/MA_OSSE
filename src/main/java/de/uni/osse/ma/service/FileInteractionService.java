@@ -132,6 +132,7 @@ public class FileInteractionService {
         }
     }
 
+    // TODO: write solution without the unnecessary HeaderInfo details
     public void writeSolution(String datasetIdentifier, String resultIdentifier, Solution allTimeBestSolution) throws IOException {
         Path resultPath = getRootPath().resolve(datasetIdentifier).resolve(resultIdentifier);
         if (allTimeBestSolution == null) {
