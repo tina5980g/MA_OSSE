@@ -32,6 +32,8 @@ public class FileInteractionService {
     private final ObjectMapper mapper;
     private final SystemConfiguration systemConfiguration;
 
+    private Path cachedRoot = null;
+
     public Path getRootPath() {
         try {
             Path datasetDirectory;
@@ -40,17 +42,24 @@ public class FileInteractionService {
             } else {
                 datasetDirectory =  Path.of(FileInteractionService.class.getClassLoader().getResource("testData").toURI()).resolve("../../../src/main/resources/testData").toAbsolutePath().normalize();
             }
+
+            if (cachedRoot != null && cachedRoot.equals(datasetDirectory)) {
+                return cachedRoot;
+            }
+            cachedRoot = datasetDirectory;
+
+            datasetDirectory = datasetDirectory.toAbsolutePath();
             if (!Files.exists(datasetDirectory)) {
-                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " does not exist");
+                throw new IOException("Dataset directory " + datasetDirectory + " does not exist");
             }
             if (!Files.isDirectory(datasetDirectory)) {
-                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " is not a directory");
+                throw new IOException("Dataset directory " + datasetDirectory + " is not a directory");
             }
             if (!Files.isReadable(datasetDirectory)) {
-                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " is not readable");
+                throw new IOException("Dataset directory " + datasetDirectory + " is not readable");
             }
             if (!Files.isWritable(datasetDirectory)) {
-                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " is not writable");
+                throw new IOException("Dataset directory " + datasetDirectory + " is not writable");
             }
             log.info("Using DatasetDirectory {}", datasetDirectory);
             return datasetDirectory;
