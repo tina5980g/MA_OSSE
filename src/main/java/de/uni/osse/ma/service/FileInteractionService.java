@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvException;
+import de.uni.osse.ma.config.SystemConfiguration;
 import de.uni.osse.ma.rs.dto.HeadersDto;
 import de.uni.osse.ma.service.simmulatedAnnealing.FILE_TYPE;
 import de.uni.osse.ma.service.simmulatedAnnealing.Solution;
+import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -26,15 +28,34 @@ import java.util.stream.Stream;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-// TODO: all those paths need to be done better, ideally configurable, and verify against a configured root
 public class FileInteractionService {
     private final ObjectMapper mapper;
+    private final SystemConfiguration systemConfiguration;
 
-    public static Path getRootPath() {
+    public Path getRootPath() {
         try {
-            return Path.of(FileInteractionService.class.getClassLoader().getResource("testData").toURI()).resolve("../../../src/main/resources/testData").toAbsolutePath().normalize();
+            Path datasetDirectory;
+            if (StringUtils.isNotBlank(systemConfiguration.getDatasetStorageDir())) {
+                datasetDirectory = Path.of(systemConfiguration.getDatasetStorageDir());
+            } else {
+                datasetDirectory =  Path.of(FileInteractionService.class.getClassLoader().getResource("testData").toURI()).resolve("../../../src/main/resources/testData").toAbsolutePath().normalize();
+            }
+            if (!Files.exists(datasetDirectory)) {
+                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " does not exist");
+            }
+            if (!Files.isDirectory(datasetDirectory)) {
+                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " is not a directory");
+            }
+            if (!Files.isReadable(datasetDirectory)) {
+                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " is not readable");
+            }
+            if (!Files.isWritable(datasetDirectory)) {
+                throw new IOException("Dataset directory " + datasetDirectory.toAbsolutePath() + " is not writable");
+            }
+            log.info("Using DatasetDirectory {}", datasetDirectory);
+            return datasetDirectory;
         } catch (Throwable e) {
-            log.error("Unrecoverable configuration error. Can't determine Root-Path for files!", e);
+            log.error("Unrecoverable configuration error. Can't access datasets!", e);
             // No way to recover from there
             System.exit(3);
             return null;
@@ -132,8 +153,7 @@ public class FileInteractionService {
         }
     }
 
-    // TODO: write solution without the unnecessary HeaderInfo details
-    public void writeSolution(String datasetIdentifier, String resultIdentifier, Solution allTimeBestSolution) throws IOException {
+    public void writeSolution(String datasetIdentifier, String resultIdentifier, Object allTimeBestSolution) throws IOException {
         Path resultPath = getRootPath().resolve(datasetIdentifier).resolve(resultIdentifier);
         if (allTimeBestSolution == null) {
             Files.deleteIfExists(resultPath);

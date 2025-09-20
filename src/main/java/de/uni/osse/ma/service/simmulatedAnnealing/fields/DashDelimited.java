@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
-// TODO: only allows up to level 2. I dont think static DataFields are enough anymore
+// TODO: Replace with enumaration based approach
 public class DashDelimited extends StringField {
 
     public DashDelimited(String rawValue) {

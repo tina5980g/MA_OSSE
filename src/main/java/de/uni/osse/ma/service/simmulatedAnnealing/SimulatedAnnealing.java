@@ -17,7 +17,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** runs simulated annealing by running multiple categorizers to find a local optimum */
+/**
+ * runs simulated annealing by running multiple categorizers to find a local optimum
+ */
 @Slf4j
 @Component
 public class SimulatedAnnealing {
@@ -34,9 +36,7 @@ public class SimulatedAnnealing {
     }
 
     @Async
-    // TODO: prevent multiple running for the same dataIdentifier at the same time
     public void calcLocalOptimumSolution(Parameters parameters) throws Exception {
-        // TODO: remove previous score-file, if it exists
         final Set<Solution> history = new HashSet<>();
         final String dataSource = fileInteractionService.getPathToFile(parameters.dataIdentifier(), FILE_TYPE.PROCESSED_DATA_SET).toString();
 
@@ -67,7 +67,7 @@ public class SimulatedAnnealing {
         int maxIterationsWithoutImprovement = 8;
         int iterationsWithoutImprovement = 0;
 
-        while(currentTemperature > minTemperature && iterationsWithoutImprovement < maxIterationsWithoutImprovement) {
+        while (currentTemperature > minTemperature && iterationsWithoutImprovement < maxIterationsWithoutImprovement) {
             boolean hasChanged = false;
 
             // find next candidate
@@ -79,15 +79,16 @@ public class SimulatedAnnealing {
                 log.warn("Duplicate Solution {}. Retrieved score {} from history.", nextSolution.getAnonymityLevels(), historicalSolution.get().getScore());
                 // this solution was already scored. To save on computation time, we don't calculate the score again
                 nextSolution.setScore(historicalSolution.get().getScore());
-            } else if (nextSolution.getAnonymityLevels().entrySet().stream().allMatch(headerInfoIntegerEntry -> 
-                headerInfoIntegerEntry.getValue() == (parameters.headerSource().maxObfuscationFor(headerInfoIntegerEntry.getKey()))
+            } else if (nextSolution.getAnonymityLevels().entrySet().stream().allMatch(headerInfoIntegerEntry ->
+                    headerInfoIntegerEntry.getValue() == (parameters.headerSource().maxObfuscationFor(headerInfoIntegerEntry.getKey()))
             )) {
                 // all maximum obfuscations -> CatBoost will error
                 nextSolution.setScore(BigDecimal.ONE.negate());
                 history.add(nextSolution);
-                
+
             } else {
                 BigDecimal score = categorizer.scoreModelAccurary(new Categorizer.ClassificationScriptArguments.ClassificationScriptArgumentsBuilder()
+                        .rootPath(fileInteractionService.getRootPath())
                         .datasetFilename(dataSource)
                         .equivalenceclassSize(parameters.kLevel())
                         .maxSuppression(parameters.maxSuppression())
@@ -98,7 +99,7 @@ public class SimulatedAnnealing {
                 nextSolution.setScore(score);
                 history.add(nextSolution);
             }
-            
+
             // For the first iteration, we compare the initial solution with itself.
             if (nextSolution.getScore().compareTo(currentSolution.getScore()) >= 0) {
                 currentSolution = nextSolution;
@@ -122,16 +123,16 @@ public class SimulatedAnnealing {
             }
         }
 
-        fileInteractionService.writeSolution(parameters.dataIdentifier(), parameters.solutionIdentifier(), allTimeBestSolution);
+        fileInteractionService.writeSolution(parameters.dataIdentifier(), parameters.solutionIdentifier(), new SimplifiedSolution(allTimeBestSolution));
         final long totalSolutions = keyList.stream()
                 .map(info -> parameters.headerSource().maxObfuscationFor(info.columnName()) + 1)
-                .reduce((a,b) -> a*b).orElse(1);
+                .reduce((a, b) -> a * b).orElse(1);
         log.info("DONE! Scored {} out of {} Solutions ({}%)", history.size(), totalSolutions, ((double) history.size()) / totalSolutions);
     }
 
     private List<String> solutionToPythonArg(Solution solution) {
         return solution.getAnonymityLevels().entrySet().stream().map(entry ->
-            entry.getKey().columnName() + "_" + entry.getValue()
+                entry.getKey().columnName() + "_" + entry.getValue()
         ).toList();
     }
 
@@ -149,7 +150,9 @@ public class SimulatedAnnealing {
         return nextSolution;
     }
 
-    public record Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String solutionIdentifier, @Nonnull String classificationTarget, @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) {
+    public record Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource,
+                             @Nonnull String solutionIdentifier, @Nonnull String classificationTarget,
+                             @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) {
 
         @Builder
         public Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String solutionIdentifier, @Nonnull String classificationTarget, @Nullable Integer kLevel, @Nullable BigDecimal maxSuppression) {

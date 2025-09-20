@@ -66,6 +66,7 @@ public class WebService {
 
     @GetMapping("/strategy/{dataIdentifier}")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    // TODO: identify number of classes and include in response with warning on higher amount "You requested a strategy for x target classes. This will take a while and may not give a good result!"
     public String getStrategy(@PathVariable("dataIdentifier") String dataIdentifier,
                               @RequestParam(name = "k", required = false) Integer kLevel,
                               @RequestParam(name = "maxSuppression", required = false) String maxSuppression,
@@ -120,7 +121,6 @@ public class WebService {
                 .kLevel(kLevel)
                 .maxSuppression(maxSuppressionValue)
                 .build());
-
         return solutionIdentifier;
     }
 

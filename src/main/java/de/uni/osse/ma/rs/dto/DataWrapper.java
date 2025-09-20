@@ -11,7 +11,6 @@ public class DataWrapper {
     private final HeadersDto headersDto;
     @Getter
     private final List<HeaderInfo> headers;
-    // TODO: can this also be Stream based?
     @Getter
     private final List<List<DataField<?>>> rows;
 

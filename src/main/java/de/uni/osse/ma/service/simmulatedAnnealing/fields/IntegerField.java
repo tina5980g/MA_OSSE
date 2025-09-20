@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
-// TODO: intervalsize should not be static
+// TODO: allow datafields with parameters
 public class IntegerField extends DataField<Integer> {
 
     public IntegerField(String rawValue) {
