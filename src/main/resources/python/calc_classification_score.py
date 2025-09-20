@@ -141,7 +141,7 @@ def calculate_classification_accuracy(columns_source, column_target, df, problem
         # Train the model on the training data.
         # TODO: GPU training  is not an option for large datasets until I figure out how to make batch training work
         # we need all classes present in both train and test, so we first get two examples of each class
-        model = CatBoostClassifier(iterations=5, depth=2, learning_rate=0.1, loss_function='MultiClass', cat_features=list(categorical_features_indices), task_type='CPU')
+        model = CatBoostClassifier(iterations=150, depth=10, learning_rate=0.1, loss_function='MultiClass', cat_features=list(categorical_features_indices), task_type='CPU')
         model.fit(x_train, y_train)
 
 
