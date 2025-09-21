@@ -22,6 +22,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -71,32 +72,59 @@ public class FileInteractionService {
         }
     }
 
-    private ImmutablePair<UUID, Path> getDatasetDirectory(final String datasetIdentifier) throws IOException {
-        UUID usedIdentifier;
-        if (datasetIdentifier == null || !getRootPath().resolve(datasetIdentifier).toFile().isDirectory()) {
-            usedIdentifier = UUID.randomUUID();
-        } else {
-            usedIdentifier = UUID.fromString(datasetIdentifier);
+    private Optional<Path> getDatasetDirectory(final String datasetIdentifier, boolean canCreateDir) throws IOException {
+        if (datasetIdentifier == null) {
+            return Optional.empty();
         }
-
-        final Path dataDirectory = getRootPath().resolve(usedIdentifier.toString());
-
-        if (!dataDirectory.toFile().isDirectory()) {
-            Files.createDirectories(dataDirectory);
+        try {
+            UUID.fromString(datasetIdentifier);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Given datasetIdentifier " + datasetIdentifier + " is not a valid UUID", ex);
         }
-        return new ImmutablePair<>(usedIdentifier, dataDirectory);
+        final Path dataDirectory = getRootPath().resolve(datasetIdentifier);
+        if (!Files.isDirectory(dataDirectory)) {
+            return Optional.empty();
+        }
+        if (!Files.exists(dataDirectory)) {
+            if (canCreateDir) {
+                Files.createDirectory(dataDirectory);
+            } else {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(dataDirectory);
+    }
+
+    private ImmutablePair<UUID, Path> getOrCreateDatasetDirectory(final String datasetIdentifier) throws IOException {
+        Optional<Path> datasetDirectory = getDatasetDirectory(datasetIdentifier, true);
+        if (datasetDirectory.isPresent()) {
+            return new ImmutablePair<>(UUID.fromString(datasetIdentifier), datasetDirectory.get());
+        }
+        UUID newIdentifier = UUID.randomUUID();
+        datasetDirectory = getDatasetDirectory(newIdentifier.toString(), true);
+        if (datasetDirectory.isPresent()) {
+            return new ImmutablePair<>(newIdentifier, datasetDirectory.get());
+        }
+        throw new IOException("Could not create dataset directory! (Original: " + datasetIdentifier + ", new: " + newIdentifier);
     }
 
     public Path getPathToFile(final String datasetIdentifier, final FILE_TYPE fileType) throws IOException {
-        return getDatasetDirectory(datasetIdentifier).getRight().resolve(fileType.getFilename());
+        return getOrCreateDatasetDirectory(datasetIdentifier).getRight().resolve(fileType.getFilename());
     }
     
     public Path getPathToSolution(final String datasetIdentifier, final String solutionIdentifier) throws IOException {
-        return getDatasetDirectory(datasetIdentifier).getRight().resolve(solutionIdentifier);
+        try {
+            UUID.fromString(solutionIdentifier);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Given solutionIdentifier " + solutionIdentifier + " is not a valid UUID", ex);
+        }
+        return getDatasetDirectory(datasetIdentifier, false)
+                .map( path -> path.resolve(solutionIdentifier))
+                .orElseThrow(() -> new FileNotFoundException("Solution file " + solutionIdentifier + " for dataset " + datasetIdentifier + " does not exist."));
     }
 
     public boolean isProcessedFileUpToDate(final String datasetIdentifier) throws IOException {
-        Path datasetDirectory = getDatasetDirectory(datasetIdentifier).getRight();
+        Path datasetDirectory = getOrCreateDatasetDirectory(datasetIdentifier).getRight();
         if (!Files.exists(datasetDirectory.resolve(FILE_TYPE.PROCESSED_DATA_SET.getFilename()))) {
             return false;
         }
@@ -122,22 +150,23 @@ public class FileInteractionService {
     }
     
     public String readStoredSolution(String datasetIdentifier, String solutionIdentifier) throws IOException {
-        File solutionFile = getPathToSolution(datasetIdentifier, solutionIdentifier).toFile();
-        if (!solutionFile.exists()) {
+        Path solutionPath = getPathToSolution(datasetIdentifier, solutionIdentifier);
+        if (!Files.exists(solutionPath)) {
             throw new FileNotFoundException("Solution file " + solutionIdentifier + " for dataset " + datasetIdentifier + " does not exist.");
         }
-        return Files.readString(solutionFile.toPath());
+        return Files.readString(solutionPath);
     }
 
     private InputStreamReader readDatasetFile(final String datasetIdentifier, final FILE_TYPE fileType) throws IOException {
-        ImmutablePair<UUID, Path> resultPair = getDatasetDirectory(datasetIdentifier);
-        Path destinationPath = resultPair.getRight().resolve(fileType.getFilename());
+        final Path destinationPath = getDatasetDirectory(datasetIdentifier, false)
+                .map(path -> path.resolve(fileType.getFilename()))
+                .orElseThrow(() -> new FileNotFoundException("Dataset directory " + datasetIdentifier + " does not exist."));
 
         return new InputStreamReader(Files.newInputStream(destinationPath, StandardOpenOption.READ));
     }
 
     public UUID writeDatasetFile(final InputStream multipartFile, final String datasetIdentifier, final FILE_TYPE fileType) throws IOException {
-        ImmutablePair<UUID, Path> resultPair = getDatasetDirectory(datasetIdentifier);
+        ImmutablePair<UUID, Path> resultPair = getOrCreateDatasetDirectory(datasetIdentifier);
         Path destinationPath = resultPair.getRight().resolve(fileType.getFilename());
         if (!Files.exists(destinationPath)) {
             Files.createFile(destinationPath);
@@ -163,7 +192,7 @@ public class FileInteractionService {
     }
 
     public void writeSolution(String datasetIdentifier, String resultIdentifier, Object allTimeBestSolution) throws IOException {
-        Path resultPath = getRootPath().resolve(datasetIdentifier).resolve(resultIdentifier);
+        Path resultPath = getPathToSolution(datasetIdentifier, resultIdentifier);
         if (allTimeBestSolution == null) {
             Files.deleteIfExists(resultPath);
             Files.createFile(resultPath);

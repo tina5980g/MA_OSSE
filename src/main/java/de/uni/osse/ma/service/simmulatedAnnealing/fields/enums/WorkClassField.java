@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields.enums;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscutable;
+import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
 public class WorkClassField extends EnumField<WorkClassField.WorkClass> {
 
@@ -10,7 +10,7 @@ public class WorkClassField extends EnumField<WorkClassField.WorkClass> {
         super(rawValue,  WorkClass.class);
     }
 
-    enum WorkClass implements Obfuscutable, ObfuscationLevelRepresentation {
+    enum WorkClass implements Obfuscatable, ObfuscationLevelRepresentation {
         PRIVATE(WorkClassLevel1.NON_GOVERNMENT),
         SELF_EMP_NOT_INC(WorkClassLevel1.NON_GOVERNMENT),
         SELF_EMP_INC(WorkClassLevel1.NON_GOVERNMENT),

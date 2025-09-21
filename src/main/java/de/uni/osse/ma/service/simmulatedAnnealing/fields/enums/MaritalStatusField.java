@@ -2,14 +2,14 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields.enums;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscutable;
+import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
 public class MaritalStatusField extends EnumField<MaritalStatusField.MaritalStatus> {
     public MaritalStatusField(String rawValue) {
         super(rawValue, MaritalStatusField.MaritalStatus.class);
     }
 
-    public enum MaritalStatus implements Obfuscutable {
+    public enum MaritalStatus implements Obfuscatable {
         MARRIED_CIV_SPOUSE("Spouse present"),
         DIVORCED("Spouse not present"),
         NEVER_MARRIED("Spouse not present"),

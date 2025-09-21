@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields.enums;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscutable;
+import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
 public class OccupationField extends EnumField<OccupationField.Occupation> {
 
@@ -10,26 +10,26 @@ public class OccupationField extends EnumField<OccupationField.Occupation> {
         super(rawValue,  Occupation.class);
     }
 
-    enum Occupation implements Obfuscutable, ObfuscationLevelRepresentation {
-        TECH_SUPPORT(WorkClassLevel1.TECHNICAL),
-        CRAFT_REPAIR(WorkClassLevel1.TECHNICAL),
-        OTHER_SERVICE(WorkClassLevel1.OTHER),
-        SALES(WorkClassLevel1.NONTECHNICAL),
-        EXEC_MANAGERIAL(WorkClassLevel1.NONTECHNICAL),
-        PROF_SPECIALTY(WorkClassLevel1.TECHNICAL),
-        HANDLERS_CLEANERS(WorkClassLevel1.NONTECHNICAL),
-        MACHINE_OP_INSPCT(WorkClassLevel1.TECHNICAL),
-        ADM_CLERICAL(WorkClassLevel1.OTHER),
-        FARMING_FISHING(WorkClassLevel1.OTHER),
-        TRANSPORT_MOVING(WorkClassLevel1.OTHER),
-        PRIV_HOUSE_SERV(WorkClassLevel1.OTHER),
-        PROTECTIVE_SERV(WorkClassLevel1.OTHER),
-        ARMED_FORCES(WorkClassLevel1.OTHER),
+    enum Occupation implements Obfuscatable, ObfuscationLevelRepresentation {
+        TECH_SUPPORT(Occupationlevel1.TECHNICAL),
+        CRAFT_REPAIR(Occupationlevel1.TECHNICAL),
+        OTHER_SERVICE(Occupationlevel1.OTHER),
+        SALES(Occupationlevel1.NONTECHNICAL),
+        EXEC_MANAGERIAL(Occupationlevel1.NONTECHNICAL),
+        PROF_SPECIALTY(Occupationlevel1.TECHNICAL),
+        HANDLERS_CLEANERS(Occupationlevel1.NONTECHNICAL),
+        MACHINE_OP_INSPCT(Occupationlevel1.TECHNICAL),
+        ADM_CLERICAL(Occupationlevel1.OTHER),
+        FARMING_FISHING(Occupationlevel1.OTHER),
+        TRANSPORT_MOVING(Occupationlevel1.OTHER),
+        PRIV_HOUSE_SERV(Occupationlevel1.OTHER),
+        PROTECTIVE_SERV(Occupationlevel1.OTHER),
+        ARMED_FORCES(Occupationlevel1.OTHER),
         ;
 
-        private final WorkClassLevel1 nextLevel;
+        private final Occupationlevel1 nextLevel;
 
-        Occupation(WorkClassLevel1 nextLevel) {
+        Occupation(Occupationlevel1 nextLevel) {
             this.nextLevel = nextLevel;
         }
 
@@ -51,7 +51,7 @@ public class OccupationField extends EnumField<OccupationField.Occupation> {
         }
     }
 
-    enum WorkClassLevel1 implements ObfuscationLevelRepresentation {
+    enum Occupationlevel1 implements ObfuscationLevelRepresentation {
         // level 1
         TECHNICAL,
         OTHER,

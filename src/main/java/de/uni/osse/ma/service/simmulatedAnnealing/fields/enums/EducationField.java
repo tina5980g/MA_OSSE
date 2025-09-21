@@ -2,9 +2,9 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields.enums;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscutable;
+import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
-import static de.uni.osse.ma.service.simmulatedAnnealing.fields.enums.EducationField.Education.EducationLevels2.*;
+import static de.uni.osse.ma.service.simmulatedAnnealing.fields.enums.EducationField.EducationLevels2.*;
 
 public class EducationField extends EnumField<EducationField.Education> {
 
@@ -19,7 +19,7 @@ public class EducationField extends EnumField<EducationField.Education> {
         this.internalValue = parse(parsingValue);
     }
 
-    enum Education implements Obfuscutable, ObfuscationLevelRepresentation {
+    enum Education implements Obfuscatable, ObfuscationLevelRepresentation {
         BACHELORS(EducationLevels1.UNDERGRADUATE),
         SOME_COLLEGE(EducationLevels1.UNDERGRADUATE),
         Y11TH(EducationLevels1.HIGH_SCHOOL),
@@ -62,45 +62,43 @@ public class EducationField extends EnumField<EducationField.Education> {
             }
             return currLevel.toString();
         }
+    }
 
-        enum EducationLevels1 implements ObfuscationLevelRepresentation {
-            // level 1
-            UNDERGRADUATE(HIGHER_EDUCATION),
-            HIGH_SCHOOL(SECONDARY_EDUCATION),
-            PROFESSIONAL_EDUCATION(HIGHER_EDUCATION),
-            GRADUATE(HIGHER_EDUCATION),
-            PRIMARY_SCHOOL(PRIMARY_EDUCATION)
-            ;
+    enum EducationLevels1 implements ObfuscationLevelRepresentation {
+        // level 1
+        UNDERGRADUATE(HIGHER_EDUCATION),
+        HIGH_SCHOOL(SECONDARY_EDUCATION),
+        PROFESSIONAL_EDUCATION(HIGHER_EDUCATION),
+        GRADUATE(HIGHER_EDUCATION),
+        PRIMARY_SCHOOL(PRIMARY_EDUCATION);
 
-            private final ObfuscationLevelRepresentation nextLevel;
+        private final ObfuscationLevelRepresentation nextLevel;
 
-            EducationLevels1(ObfuscationLevelRepresentation nextLevel) {
-                this.nextLevel = nextLevel;
-            }
-
-
-            @Override
-            public ObfuscationLevelRepresentation getNextLevel() {
-                return nextLevel;
-            }
+        EducationLevels1(ObfuscationLevelRepresentation nextLevel) {
+            this.nextLevel = nextLevel;
         }
 
-        enum EducationLevels2 implements ObfuscationLevelRepresentation {
-            HIGHER_EDUCATION(StaticRepresentations.LAST_LEVEL),
-            SECONDARY_EDUCATION(StaticRepresentations.LAST_LEVEL),
-            PRIMARY_EDUCATION(StaticRepresentations.LAST_LEVEL)
-            ;
 
-            private final ObfuscationLevelRepresentation nextLevel;
+        @Override
+        public ObfuscationLevelRepresentation getNextLevel() {
+            return nextLevel;
+        }
+    }
 
-            EducationLevels2(ObfuscationLevelRepresentation nextLevel) {
-                this.nextLevel = nextLevel;
-            }
+    enum EducationLevels2 implements ObfuscationLevelRepresentation {
+        HIGHER_EDUCATION(StaticRepresentations.LAST_LEVEL),
+        SECONDARY_EDUCATION(StaticRepresentations.LAST_LEVEL),
+        PRIMARY_EDUCATION(StaticRepresentations.LAST_LEVEL);
 
-            @Override
-            public ObfuscationLevelRepresentation getNextLevel() {
-                return nextLevel;
-            }
+        private final ObfuscationLevelRepresentation nextLevel;
+
+        EducationLevels2(ObfuscationLevelRepresentation nextLevel) {
+            this.nextLevel = nextLevel;
+        }
+
+        @Override
+        public ObfuscationLevelRepresentation getNextLevel() {
+            return nextLevel;
         }
     }
 

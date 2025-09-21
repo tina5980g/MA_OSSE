@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
-public class EnumField<T extends Enum<T> & Obfuscutable> extends DataField<T> {
+public class EnumField<T extends Enum<T> & Obfuscatable> extends DataField<T> {
     protected Class<T> clazz;
 
     public EnumField(String rawValue, Class<T> clazz) {

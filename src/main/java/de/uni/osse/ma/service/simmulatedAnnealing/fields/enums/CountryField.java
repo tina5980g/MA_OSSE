@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields.enums;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscutable;
+import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
 public class CountryField extends EnumField<CountryField.Country> {
 
@@ -26,7 +26,7 @@ public class CountryField extends EnumField<CountryField.Country> {
     }
 
 
-    public enum Country implements Obfuscutable {
+    public enum Country implements Obfuscatable {
         UNKNOWN("*"),
         CAMBODIA("Asia"),
         CANADA("North America"),

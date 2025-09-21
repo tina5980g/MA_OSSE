@@ -1,7 +1,7 @@
 package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 
-public abstract class DataField<T> implements Obfuscutable {
+public abstract class DataField<T> implements Obfuscatable {
     protected T internalValue;
 
     public DataField(String rawValue) {

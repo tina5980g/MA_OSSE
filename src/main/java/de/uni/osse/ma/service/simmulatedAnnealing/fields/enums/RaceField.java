@@ -2,7 +2,7 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields.enums;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
-import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscutable;
+import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
 public class RaceField extends EnumField<RaceField.Race> {
 
@@ -10,7 +10,7 @@ public class RaceField extends EnumField<RaceField.Race> {
         super(rawValue, RaceField.Race.class);
     }
 
-    enum Race implements Obfuscutable {
+    enum Race implements Obfuscatable {
         WHITE,
         ASIAN_PAC_ISLANDER,
         AMER_INDIAN_ESKIMO,
