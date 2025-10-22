@@ -23,6 +23,10 @@ public record HeaderInfo(@Nonnull String columnName, @Nonnull String columnIdent
     }
 
     public DataField<?> parseValue(String rawValue) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        if (rawValue == null || rawValue.equalsIgnoreCase("nan")) {
+            throw new IllegalArgumentException("rawValue cannot be null or empty");
+        }
+
         return switch (obfuscationInfo.strategy()) {
             case STATIC -> dataType().getRepresentingClass().getDeclaredConstructor(String.class).newInstance(rawValue);
             case PROVIDED -> new RawField(rawValue);

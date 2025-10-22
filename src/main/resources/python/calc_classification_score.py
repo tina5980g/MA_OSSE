@@ -3,13 +3,18 @@ from enum import Enum
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from catboost import CatBoostClassifier
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, balanced_accuracy_score
+
 from argparse import ArgumentParser
 import numpy as np
 import datetime
 
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 pd.options.mode.copy_on_write = True
+
+FLAG_CALC_ACCURACY = True
+FLAG_CALC_BALANCED_ACCURACY = True
+FLAG_CALC_F1_SCORE = True
 
 class ProblemType(Enum):
     BINARY = 1
@@ -30,6 +35,16 @@ def score_binary(model, x_test, y_test):
     # Calculate the AUC-ROC score
     auc_roc = roc_auc_score(y_test_binary, y_pred_binary)
     print("AUC-ROC Score (binary):", auc_roc)
+
+    if FLAG_CALC_ACCURACY:
+        accuracy = accuracy_score(y_test, y_pred)
+        print("accuracy of trained model (binary):", accuracy)
+    if FLAG_CALC_F1_SCORE:
+        score_f1 = f1_score(y_test, y_pred, average='binary', pos_label=true_val)
+        print("f1Score of trained model (binary):", score_f1)
+    if FLAG_CALC_BALANCED_ACCURACY:
+        score_balanced_accuracy = balanced_accuracy_score(y_test, y_pred)
+        print("balanced accuracy of trained model (binary):", score_balanced_accuracy)
 
     return auc_roc
 
@@ -53,6 +68,21 @@ def score_multiclass(model, x_test, y_test) :
 
     auc_roc = roc_auc_score(y_test.to_numpy(), y_pred, labels=model.classes_, multi_class="ovo", average='macro')
     print("AUC-ROC Score (multiclass):", auc_roc)
+
+    if FLAG_CALC_ACCURACY or FLAG_CALC_F1_SCORE or FLAG_CALC_BALANCED_ACCURACY:
+        y_pred_class = model.predict(x_test,
+                                     prediction_type='Class',
+                                     task_type="CPU")
+
+    if FLAG_CALC_ACCURACY:
+        score_accuracy = accuracy_score(y_test, y_pred_class)
+        print("accuracy of trained model (multiclass):", score_accuracy)
+    if FLAG_CALC_F1_SCORE:
+        score_f1 = f1_score(y_test, y_pred_class, average='micro')
+        print("f1Score of trained model (multiclass):", score_f1)
+    if FLAG_CALC_BALANCED_ACCURACY:
+        score_balanced_accuracy = balanced_accuracy_score(y_test, y_pred_class)
+        print("balanced accuracy of trained model (multiclass):", score_balanced_accuracy)
 
     return auc_roc
 

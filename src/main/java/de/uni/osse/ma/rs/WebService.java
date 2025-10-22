@@ -42,11 +42,11 @@ public class WebService {
         try (InputStream stream = dataFile.getInputStream()) {
             identifier = fileInteractionService.writeDatasetFile(stream, dataIdentifier, FILE_TYPE.DATA_SET);
         } catch (IOException e) {
+            log.error("Could not read or store data file", e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read or store data file.", e);
         }
 
-
-        return new UploadResponseDto(identifier, identifier == null || Objects.equals(identifier.toString(), dataIdentifier));
+        return new UploadResponseDto(identifier, !Objects.equals(identifier.toString(), dataIdentifier));
     }
 
     @PostMapping(value = "/upload/headers", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -57,10 +57,11 @@ public class WebService {
         try (InputStream stream = new ByteArrayInputStream(objectMapper.writeValueAsString(headerFile).getBytes(StandardCharsets.UTF_8))) {
             identifier = fileInteractionService.writeDatasetFile(stream, dataIdentifier, FILE_TYPE.HEADER_DATA);
         } catch (IOException e) {
+            log.error("Could not read or store data file", e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read or store header file.", e);
         }
 
-        return new UploadResponseDto(identifier, identifier == null || Objects.equals(identifier.toString(), dataIdentifier));
+        return new UploadResponseDto(identifier, !Objects.equals(identifier.toString(), dataIdentifier));
     }
 
 

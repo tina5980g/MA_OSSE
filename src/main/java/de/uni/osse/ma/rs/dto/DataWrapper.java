@@ -2,11 +2,13 @@ package de.uni.osse.ma.rs.dto;
 
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.DataField;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class DataWrapper {
     private final HeadersDto headersDto;
     @Getter
@@ -40,8 +42,13 @@ public class DataWrapper {
             List<List<DataField<?>>> list = new ArrayList<>();
             for (String[] rawValue : rawValues) {
                 List<DataField<?>> parsedRow = new ArrayList<>(rawValue.length);
-                for (int i = 0; i < rawValue.length; i++) {
-                    parsedRow.add(this.headers.get(i).parseValue(rawValue[i]));
+                try {
+                    for (int i = 0; i < rawValue.length; i++) {
+                        parsedRow.add(this.headers.get(i).parseValue(rawValue[i]));
+                    }
+                } catch (IllegalArgumentException e) {
+                    log.warn("Could not parse a value of {}", String.join(";", rawValue));
+                    continue;
                 }
 
                 list.add(parsedRow);

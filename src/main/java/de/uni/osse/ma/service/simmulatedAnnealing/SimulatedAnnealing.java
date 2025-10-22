@@ -123,11 +123,12 @@ public class SimulatedAnnealing {
             }
         }
 
-        fileInteractionService.writeSolution(parameters.dataIdentifier(), parameters.solutionIdentifier(), new SimplifiedSolution(allTimeBestSolution));
         final long totalSolutions = keyList.stream()
                 .map(info -> parameters.headerSource().maxObfuscationFor(info.columnName()) + 1)
                 .reduce((a, b) -> a * b).orElse(1);
         log.info("DONE! Scored {} out of {} Solutions ({}%)", history.size(), totalSolutions, ((double) history.size()) / totalSolutions);
+        fileInteractionService.writeSolution(parameters.dataIdentifier(), parameters.solutionIdentifier(), new SimplifiedSolution(allTimeBestSolution));
+
     }
 
     private List<String> solutionToPythonArg(Solution solution) {
