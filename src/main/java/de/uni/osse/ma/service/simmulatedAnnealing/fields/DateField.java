@@ -4,6 +4,7 @@ import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 public class DateField extends DataField<LocalDate> {
     private static final DateTimeFormatter FULL_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -20,7 +21,7 @@ public class DateField extends DataField<LocalDate> {
     }
 
     @Override
-    public String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException {
+    public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
         return switch (level) {
             case 0 -> internalValue.format(FULL_DATE_FORMAT);
             case 1 -> internalValue.format(NO_DAY_FORMAT);

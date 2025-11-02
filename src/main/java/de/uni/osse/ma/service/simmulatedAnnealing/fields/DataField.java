@@ -1,8 +1,10 @@
 package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
+import java.util.Map;
 
 public abstract class DataField<T> implements Obfuscatable {
     protected T internalValue;
+    protected Map<String, Object> params;
 
     public DataField(String rawValue) {
         this.internalValue = parse(rawValue);

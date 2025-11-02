@@ -4,6 +4,8 @@ import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
+import java.util.Map;
+
 public class CountryField extends EnumField<CountryField.Country> {
 
 
@@ -78,7 +80,7 @@ public class CountryField extends EnumField<CountryField.Country> {
         }
 
         @Override
-        public String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException {
+        public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
             return switch (level) {
                 case 0 -> this.name();
                 case 1 -> this.continent;

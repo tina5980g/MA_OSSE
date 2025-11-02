@@ -4,6 +4,8 @@ import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.EnumField;
 import de.uni.osse.ma.service.simmulatedAnnealing.fields.Obfuscatable;
 
+import java.util.Map;
+
 public class OccupationField extends EnumField<OccupationField.Occupation> {
 
     public OccupationField(String rawValue) {
@@ -34,7 +36,7 @@ public class OccupationField extends EnumField<OccupationField.Occupation> {
         }
 
         @Override
-        public String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException {
+        public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
             if (level == 0) return this.name();
             if (level > 2) throw new NoMoreAnonymizationLevelsException(level);
 

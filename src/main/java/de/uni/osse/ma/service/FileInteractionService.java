@@ -8,10 +8,11 @@ import com.opencsv.exceptions.CsvException;
 import de.uni.osse.ma.config.SystemConfiguration;
 import de.uni.osse.ma.rs.dto.HeadersDto;
 import de.uni.osse.ma.service.simmulatedAnnealing.FILE_TYPE;
-import de.uni.osse.ma.service.simmulatedAnnealing.Solution;
+import de.uni.osse.ma.service.simmulatedAnnealing.SimplifiedSolution;
 import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.stream.Streams;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.stereotype.Component;
 
@@ -21,10 +22,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @Component
 @RequiredArgsConstructor
@@ -82,21 +82,17 @@ public class FileInteractionService {
             throw new IllegalArgumentException("Given datasetIdentifier " + datasetIdentifier + " is not a valid UUID", ex);
         }
         final Path dataDirectory = getRootPath().resolve(datasetIdentifier);
+        if (!Files.exists(dataDirectory) && canCreateDir) {
+            Files.createDirectory(dataDirectory);
+        }
         if (!Files.isDirectory(dataDirectory)) {
             return Optional.empty();
-        }
-        if (!Files.exists(dataDirectory)) {
-            if (canCreateDir) {
-                Files.createDirectory(dataDirectory);
-            } else {
-                return Optional.empty();
-            }
         }
         return Optional.of(dataDirectory);
     }
 
     private ImmutablePair<UUID, Path> getOrCreateDatasetDirectory(final String datasetIdentifier) throws IOException {
-        Optional<Path> datasetDirectory = getDatasetDirectory(datasetIdentifier, true);
+        Optional<Path> datasetDirectory = getDatasetDirectory(datasetIdentifier, false);
         if (datasetDirectory.isPresent()) {
             return new ImmutablePair<>(UUID.fromString(datasetIdentifier), datasetDirectory.get());
         }
@@ -135,10 +131,10 @@ public class FileInteractionService {
         return processedTime.compareTo(dataTime) > 0 && headerTime.compareTo(dataTime) > 0;
     }
 
-    public List<String[]> readStoredDatasetValue(String datasetIdentifier) throws IOException, CsvException {
+    public Spliterator<String[]> readStoredDatasetValue(String datasetIdentifier) throws IOException {
         try(var inputStream = readDatasetFile(datasetIdentifier, FILE_TYPE.DATA_SET)) {
             try (CSVReader csvReader = new CSVReader(inputStream)) {
-                return csvReader.readAll();
+                return csvReader.spliterator();
             }
         }
     }
@@ -199,7 +195,7 @@ public class FileInteractionService {
             // empty file marks a solution that has been requested, but not yet found
             return;
         }
-        ObjectWriter objectWriter = mapper.writerFor(Solution.class);
+        ObjectWriter objectWriter = mapper.writerFor(SimplifiedSolution.class);
         objectWriter.writeValue(resultPath.toFile(), allTimeBestSolution);
     }
 }

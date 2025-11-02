@@ -2,6 +2,8 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
+import java.util.Map;
+
 public class EnumField<T extends Enum<T> & Obfuscatable> extends DataField<T> {
     protected Class<T> clazz;
 
@@ -20,7 +22,7 @@ public class EnumField<T extends Enum<T> & Obfuscatable> extends DataField<T> {
     }
 
     @Override
-    public String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException {
-        return internalValue.representWithObfuscation(level);
+    public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
+        return internalValue.representWithObfuscation(level, params);
     }
 }

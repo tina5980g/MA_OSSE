@@ -2,7 +2,9 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
-// TODO: allow datafields with parameters
+import java.math.BigDecimal;
+import java.util.Map;
+
 public class IntegerField extends DataField<Integer> {
 
     public IntegerField(String rawValue) {
@@ -11,11 +13,11 @@ public class IntegerField extends DataField<Integer> {
 
     @Override
     protected Integer parse(String rawValue) {
-        return Integer.valueOf(rawValue);
+        return new BigDecimal(rawValue).intValue();
     }
 
     @Override
-    public String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException {
+    public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
         if (level == 0) {
             return this.internalValue.toString();
         } else {
@@ -23,6 +25,7 @@ public class IntegerField extends DataField<Integer> {
         }
     }
 
+    // TODO: handle parameterized Interval like in DecimalField
     protected String intoInterval(int intervalSize) {
         int lowerBound = (this.internalValue - (this.internalValue % intervalSize));
         return lowerBound + " - " + (lowerBound + intervalSize);

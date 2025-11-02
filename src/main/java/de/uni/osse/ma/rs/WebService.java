@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.uni.osse.ma.rs.dto.*;
 import de.uni.osse.ma.service.FileInteractionService;
 import de.uni.osse.ma.service.simmulatedAnnealing.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -19,19 +19,30 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/osse")
-@RequiredArgsConstructor
 @Slf4j
 public class WebService {
 
-    private final Preprocessor preprocessor;
     private final FileInteractionService fileInteractionService;
-    private final SimulatedAnnealing simulatedAnnealing;
+    private final Map<AnonymizationAlgorithm, AnonymityProcessor<?>> anonymityProcessorMap;
     private final ObjectMapper objectMapper;
+    private final DatasetService datasetService;
+
+    @Autowired
+    public WebService(FileInteractionService fileInteractionService, List<AnonymityProcessor<?>> anonymityProcessors, ObjectMapper objectMapper, DatasetService datasetService) {
+        this.fileInteractionService = fileInteractionService;
+        this.objectMapper = objectMapper;
+        this.datasetService = datasetService;
+
+        this.anonymityProcessorMap = anonymityProcessors.stream().collect(Collectors.toMap(AnonymityProcessor::getAlgorithm, Function.identity()));
+    }
 
     @PostMapping(value = "/upload/dataset", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public UploadResponseDto uploadDataset(@RequestParam(name = "data") MultipartFile dataFile,
@@ -73,15 +84,13 @@ public class WebService {
                               @RequestParam(name = "maxSuppression", required = false) String maxSuppression,
                               @RequestParam(name = "featureColumns", required = false) List<String> featureColumns,
                               @RequestParam(name = "targetColumn") String targetColumn) throws Exception {
-        var data = fileInteractionService.readStoredDatasetValue(dataIdentifier);
+        datasetService.updateProcessedFile(dataIdentifier);
+
         var fieldMetadata = fileInteractionService.readStoredHeaderDataValue(dataIdentifier);
 
-        // preprocess only if either data or header are younger than an already existing processed file
-        if (!fileInteractionService.isProcessedFileUpToDate(dataIdentifier)) {
-            log.info("Processing file for {}.", dataIdentifier);
-            final DataWrapper wrapper = new DataWrapper(data, fieldMetadata);
-            var processedData = preprocessor.addObfusccations(wrapper);
-            fileInteractionService.writeProcessedCSV(processedData, dataIdentifier);
+        // Only to check preprocessing for obesity
+        if (false) {
+            return "No change";
         }
 
         // Dirty, but works
@@ -92,7 +101,7 @@ public class WebService {
             if (CollectionUtils.isEmpty(featureColumns) && !targetColumn.contains(headerInfo.columnName())) {
                 return headerInfo;
             }
-            return new HeaderInfo(headerInfo.columnName(), headerInfo.columnIdentifier(), new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.IGNORE, null));
+            return new HeaderInfo(headerInfo.columnName(), headerInfo.columnIdentifier(), new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.IGNORE, null, null));
         }).toList());
 
         final String solutionIdentifier = UUID.randomUUID().toString();
@@ -105,33 +114,32 @@ public class WebService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid max suppression value: " + maxSuppression);
             }
         }
-        SimulatedAnnealing.Parameters.builder()
-                .dataIdentifier(dataIdentifier)
-                .headerSource(fieldMetadata)
-                .classificationTarget(targetColumn)
-                .solutionIdentifier(solutionIdentifier)
-                .kLevel(kLevel)
-                .maxSuppression(maxSuppressionValue)
-                .build();
 
-        simulatedAnnealing.calcLocalOptimumSolution(SimulatedAnnealing.Parameters.builder()
+        final SimulatedAnnealing anonymityProcessor = (SimulatedAnnealing) anonymityProcessorMap.get(AnonymizationAlgorithm.SIMULATED_ANNEALING);
+
+        anonymityProcessor.processAsync(SimulatedAnnealing.Parameters.builder()
                 .dataIdentifier(dataIdentifier)
                 .headerSource(fieldMetadata)
                 .classificationTarget(targetColumn)
-                .solutionIdentifier(solutionIdentifier)
                 .kLevel(kLevel)
                 .maxSuppression(maxSuppressionValue)
-                .build());
+                .build(), solutionIdentifier);
         return solutionIdentifier;
     }
 
     // String representation of a Solution (Solution contains a map, so Jackson gets confused when deserializing
-    @GetMapping("/strategy/{dataIdentifier}/{solutionIdentifier}")
-    public String getSolution(@PathVariable("dataIdentifier") String dataIdentifier, @PathVariable("solutionIdentifier") String solutionIdentifier) throws Exception {
+    @GetMapping(value = "/strategy/{dataIdentifier}/{solutionIdentifier}", produces =  {MediaType.APPLICATION_JSON_VALUE, "text/csv"})
+    public String getSolution(@PathVariable("dataIdentifier") String dataIdentifier, @PathVariable("solutionIdentifier") String solutionIdentifier, @RequestHeader("Accept-Encoding") String encoding) throws Exception {
         String solution = fileInteractionService.readStoredSolution(dataIdentifier, solutionIdentifier);
         if (solution == null) {
             throw new ResponseStatusException(HttpStatus.NO_CONTENT, "Solution not yet found. Try again later.");
         }
-        return solution;
+        if (encoding == null || MediaType.APPLICATION_JSON_VALUE.equalsIgnoreCase(encoding)) {
+            return solution;
+        } else if ("text/csv".equalsIgnoreCase(encoding)) {
+            return "";
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid encoding: " + encoding);
+        }
     }
 }

@@ -5,9 +5,11 @@ import de.uni.osse.ma.service.simmulatedAnnealing.fields.RawField;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
+import org.springframework.util.CollectionUtils;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
 import java.util.Objects;
 
 @Builder
@@ -19,7 +21,7 @@ public record HeaderInfo(@Nonnull String columnName, @Nonnull String columnIdent
 
         this.columnName = columnName;
         this.columnIdentifier = columnIdentifier;
-        this.obfuscationInfo = Objects.requireNonNullElseGet(obfuscationInfo, () -> new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.NONIDENTIFIER, null));
+        this.obfuscationInfo = Objects.requireNonNullElseGet(obfuscationInfo, () -> new ObfuscationInfo(ObfuscationInfo.ObfuscationStrategy.STATIC, DataType.NONIDENTIFIER, null, null));
     }
 
     public DataField<?> parseValue(String rawValue) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {

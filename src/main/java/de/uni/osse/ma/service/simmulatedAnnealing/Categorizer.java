@@ -45,7 +45,7 @@ public class Categorizer implements InitializingBean {
         if (!READY) throw new BeanInitializationException("Catboost initialization not successful!");
     }
 
-    public BigDecimal scoreModelAccurary(final ClassificationScriptArguments.ClassificationScriptArgumentsBuilder scriptArguments) throws Exception {
+    public BigDecimal scoreModelAccurary(final ClassificationScriptArguments.ClassificationScriptArgumentsBuilder scriptArguments) throws IOException, URISyntaxException {
         scriptArguments.threadId(Thread.currentThread().getName());
         var args = scriptArguments.build();
         int exitCode = callPythonScript("calc_classification_score.py", args.toArgs());
@@ -61,7 +61,7 @@ public class Categorizer implements InitializingBean {
             String lastResult = reverseReader.readLine();
             if (lastResult.split(";").length != 4) {
                 log.error("Invalid format: {}", lastResult);
-                throw new Exception("Scoring result for '" + args.threadId() + "' has invalid format.");
+                throw new IOException("Scoring result for '" + args.threadId() + "' has invalid format.");
             }
             String score = lastResult.split(";")[1];
             log.debug("{} scored {}", String.join(", ", args.solutionColumns()), score);

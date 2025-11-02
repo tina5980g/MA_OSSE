@@ -18,12 +18,15 @@ public enum DataType {
     OCCUPATION(DashDelimited.class, 2),
     IGNORE(IdentifyingField.class, 0),
     COUNTRY(CountryField.class, 2),
+    INTEGER(IntegerField.class, 5),
+    DECIMAL(DecimalField.class, 5),
     // For the ARX example
     ARX_RACE(RaceField.class, 1),
     ARX_MARITAL(MaritalStatusField.class, 2),
     ARX_EDUCATION(EducationField.class, 3),
     ARX_WORKCLASS(WorkClassField.class, 2),
     ARX_OCCUPATION(OccupationField.class, 2),
+
     ;
 
     private final Class<? extends DataField<?>> representingClass;

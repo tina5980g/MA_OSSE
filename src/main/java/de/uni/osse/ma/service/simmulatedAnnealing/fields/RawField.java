@@ -2,13 +2,15 @@ package de.uni.osse.ma.service.simmulatedAnnealing.fields;
 
 import de.uni.osse.ma.exceptions.NoMoreAnonymizationLevelsException;
 
+import java.util.Map;
+
 public class RawField extends StringField {
     public RawField(String rawValue) {
         super(rawValue);
     }
 
     @Override
-    public String representWithObfuscation(int level) throws NoMoreAnonymizationLevelsException {
+    public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
         return this.internalValue;
     }
 }

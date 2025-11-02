@@ -9,6 +9,8 @@ import jakarta.annotation.Nullable;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +24,8 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class SimulatedAnnealing {
+@Scope( proxyMode = ScopedProxyMode.TARGET_CLASS )
+public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnnealing.Parameters> {
     private static final Random RANDOM = new Random();
 
     private final Categorizer categorizer;
@@ -35,8 +38,8 @@ public class SimulatedAnnealing {
         this.fileInteractionService = fileInteractionService;
     }
 
-    @Async
-    public void calcLocalOptimumSolution(Parameters parameters) throws Exception {
+    @Override
+    public Solution process(Parameters parameters) throws Exception {
         final Set<Solution> history = new HashSet<>();
         final String dataSource = fileInteractionService.getPathToFile(parameters.dataIdentifier(), FILE_TYPE.PROCESSED_DATA_SET).toString();
 
@@ -127,8 +130,19 @@ public class SimulatedAnnealing {
                 .map(info -> parameters.headerSource().maxObfuscationFor(info.columnName()) + 1)
                 .reduce((a, b) -> a * b).orElse(1);
         log.info("DONE! Scored {} out of {} Solutions ({}%)", history.size(), totalSolutions, ((double) history.size()) / totalSolutions);
-        fileInteractionService.writeSolution(parameters.dataIdentifier(), parameters.solutionIdentifier(), new SimplifiedSolution(allTimeBestSolution));
+        return allTimeBestSolution;
+    }
 
+    @Async
+    @Override
+    public void processAsync(Parameters parameters, String solutionIdentifier) throws Exception {
+        final Solution solution = process(parameters);
+        fileInteractionService.writeSolution(parameters.dataIdentifier(), solutionIdentifier, new SimplifiedSolution(solution));
+    }
+
+    @Override
+    public AnonymizationAlgorithm getAlgorithm() {
+        return AnonymizationAlgorithm.SIMULATED_ANNEALING;
     }
 
     private List<String> solutionToPythonArg(Solution solution) {
@@ -152,14 +166,13 @@ public class SimulatedAnnealing {
     }
 
     public record Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource,
-                             @Nonnull String solutionIdentifier, @Nonnull String classificationTarget,
-                             @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) {
+                             @Nonnull String classificationTarget,
+                             @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) implements ProcessorParams{
 
         @Builder
-        public Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String solutionIdentifier, @Nonnull String classificationTarget, @Nullable Integer kLevel, @Nullable BigDecimal maxSuppression) {
+        public Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String classificationTarget, @Nullable Integer kLevel, @Nullable BigDecimal maxSuppression) {
             this.dataIdentifier = dataIdentifier;
             this.headerSource = headerSource;
-            this.solutionIdentifier = solutionIdentifier;
             this.classificationTarget = classificationTarget;
             this.kLevel = Objects.requireNonNullElse(kLevel, 2);
             this.maxSuppression = Objects.requireNonNullElse(maxSuppression, BigDecimal.valueOf(1, 1));
