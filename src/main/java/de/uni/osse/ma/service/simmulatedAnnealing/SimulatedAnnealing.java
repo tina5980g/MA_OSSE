@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,6 +28,9 @@ import java.util.stream.Collectors;
 @Scope( proxyMode = ScopedProxyMode.TARGET_CLASS )
 public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnnealing.Parameters> {
     private static final Random RANDOM = new Random();
+    private static final BigDecimal INITIAL_TEMPERATURE = BigDecimal.valueOf(1000);
+    private static final BigDecimal MINIMUM_TEMPERATURE = BigDecimal.ONE.scaleByPowerOfTen(-1000);
+    private static final BigDecimal COOLING_RATE = BigDecimal.valueOf(8).scaleByPowerOfTen(-10);
 
     private final Categorizer categorizer;
     private final FileInteractionService fileInteractionService;
@@ -63,14 +67,12 @@ public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnne
         ));
         Solution allTimeBestSolution = currentSolution;
 
-        double currentTemperature = 1000;
-        final double minTemperature = 0.001;
-        final double coolingRate = 0.8;
+        BigDecimal currentTemperature = INITIAL_TEMPERATURE;
 
         int maxIterationsWithoutImprovement = 8;
         int iterationsWithoutImprovement = 0;
 
-        while (currentTemperature > minTemperature && iterationsWithoutImprovement < maxIterationsWithoutImprovement) {
+        while (currentTemperature.compareTo(MINIMUM_TEMPERATURE) > 0 && iterationsWithoutImprovement < maxIterationsWithoutImprovement) {
             boolean hasChanged = false;
 
             // find next candidate
@@ -111,7 +113,7 @@ public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnne
                 }
                 hasChanged = true;
             } else {
-                double acceptance_probability = Math.exp((currentSolution.getScore().subtract(nextSolution.getScore())).doubleValue() / currentTemperature);
+                double acceptance_probability = Math.exp((currentSolution.getScore().subtract(nextSolution.getScore())).divide(currentTemperature, RoundingMode.HALF_UP).doubleValue());
                 if (RANDOM.nextDouble() < acceptance_probability) {
                     currentSolution = nextSolution;
                     hasChanged = true;
@@ -120,7 +122,7 @@ public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnne
 
             if (hasChanged) {
                 iterationsWithoutImprovement = 0;
-                currentTemperature = currentTemperature * coolingRate;
+                currentTemperature = currentTemperature.multiply(COOLING_RATE);
             } else {
                 iterationsWithoutImprovement++;
             }
