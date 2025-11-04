@@ -4,7 +4,6 @@ import java.util.Map;
 
 public abstract class DataField<T> implements Obfuscatable {
     protected T internalValue;
-    protected Map<String, Object> params;
 
     public DataField(String rawValue) {
         this.internalValue = parse(rawValue);
@@ -15,4 +14,8 @@ public abstract class DataField<T> implements Obfuscatable {
     }
 
     protected abstract T parse(String rawValue);
+
+    public int getDynamicMaxObfuscation(Map<String, Object> params) {
+        return 5; // upper bound. Everything can deal with NoAnonymizationExceptions.
+    }
 }

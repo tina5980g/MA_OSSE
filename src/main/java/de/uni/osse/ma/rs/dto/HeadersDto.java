@@ -38,7 +38,14 @@ public record HeadersDto(List<HeaderInfo> columns) {
         return switch (headerInfo.obfuscationInfo().strategy()) {
             case STATIC -> {
                 if (list.size() == 1) {
-                    yield headerInfo.dataType().getMaxObfuscation();
+                    if (headerInfo.obfuscationInfo().params().isEmpty()) {
+                        yield headerInfo.dataType().getMaxObfuscation();
+                    }
+                    try {
+                        yield headerInfo.dataType().getRepresentingClass().getDeclaredConstructor(String.class).newInstance("0").getDynamicMaxObfuscation(headerInfo.obfuscationInfo().params());
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Could not determine upper bound for " + headerInfo.columnName(), e);
+                    }
                 }
                 throw new IllegalStateException("Found more than one column with name " + columnName + " on STATIC strategy");
             }

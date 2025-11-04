@@ -84,14 +84,15 @@ public class WebService {
                               @RequestParam(name = "maxSuppression", required = false) String maxSuppression,
                               @RequestParam(name = "featureColumns", required = false) List<String> featureColumns,
                               @RequestParam(name = "targetColumn") String targetColumn) throws Exception {
-        datasetService.updateProcessedFile(dataIdentifier);
+
+        try {
+            datasetService.updateProcessedFile(dataIdentifier);
+        } catch (Exception e) {
+            log.error("Could not update processed file", e);
+            throw e;
+        }
 
         var fieldMetadata = fileInteractionService.readStoredHeaderDataValue(dataIdentifier);
-
-        // Only to check preprocessing for obesity
-        if (false) {
-            return "No change";
-        }
 
         // Dirty, but works
         fieldMetadata = new HeadersDto(fieldMetadata.columns().stream().map(headerInfo -> {

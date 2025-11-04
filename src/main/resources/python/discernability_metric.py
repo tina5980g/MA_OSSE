@@ -22,6 +22,8 @@ running_sum_at_least_k = 0
 groups_below_k = 0
 running_sum_below_k = 0
 
+suppressed_rows = 0
+
 for (name, group) in grouped:
     size = group.shape[0]
     if size >= args.k:
@@ -29,8 +31,10 @@ for (name, group) in grouped:
         running_sum_at_least_k += size * size
     else:
         groups_below_k += 1
+        suppressed_rows += size
         running_sum_below_k += size
 
+print("suppressed " + str(suppressed_rows) + " out of " + str(total_rows) + " rows. (" + str(suppressed_rows/total_rows) + ")")
 print("groupcount below: '" + str(groups_below_k) + "'; groups above: '" + str(groups_at_least_k) + "'")
 print("running_sum_below_k=" + str(running_sum_below_k) + "; running_sum_at_least_k=" + str(running_sum_at_least_k))
 print("discernibility: ", (running_sum_below_k * total_rows) + running_sum_at_least_k)

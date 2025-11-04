@@ -20,4 +20,8 @@ public class YearField extends IntegerField {
             default -> throw new NoMoreAnonymizationLevelsException(level);
         };
     }
+
+    private String intoInterval(int intervalSize) {
+        return super.toInterval(0, intervalSize, Integer.MAX_VALUE);
+    }
 }

@@ -131,10 +131,10 @@ public class FileInteractionService {
         return processedTime.compareTo(dataTime) > 0 && headerTime.compareTo(dataTime) > 0;
     }
 
-    public Spliterator<String[]> readStoredDatasetValue(String datasetIdentifier) throws IOException {
+    public List<String[]> readStoredDatasetValue(String datasetIdentifier) throws IOException, CsvException {
         try(var inputStream = readDatasetFile(datasetIdentifier, FILE_TYPE.DATA_SET)) {
             try (CSVReader csvReader = new CSVReader(inputStream)) {
-                return csvReader.spliterator();
+                return csvReader.readAll();
             }
         }
     }

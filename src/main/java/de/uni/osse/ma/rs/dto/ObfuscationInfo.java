@@ -5,6 +5,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -13,12 +15,20 @@ public record ObfuscationInfo(@Nonnull @Schema(description = "Determines which f
                               @Nullable @Schema(description = "Required for PROVIDED strategy") Integer level,
                               @Nullable @Schema(description = "Additional params for STATIC strategy. Recognized values depend on dataType") Map<String, Object> params) implements Serializable {
 
-    public ObfuscationInfo {
+    public ObfuscationInfo(@Nonnull @Schema(description = "Determines which fields are required") ObfuscationStrategy strategy, @Nullable @Schema(description = "Required for STATIC strategy") DataType dataType, @Nullable @Schema(description = "Required for PROVIDED strategy") Integer level, @Nullable @Schema(description = "Additional params for STATIC strategy. Recognized values depend on dataType") Map<String, Object> params) {
         Objects.requireNonNull(strategy);
         switch (strategy) {
             case STATIC -> Objects.requireNonNull(dataType);
             case PROVIDED -> Objects.requireNonNull(level);
         }
+        if (params == null) {
+            this.params = Collections.emptyMap();
+        } else {
+            this.params = new HashMap<>(params);
+        }
+        this.strategy = strategy;
+        this.dataType = dataType;
+        this.level = level;
     }
 
     public enum ObfuscationStrategy {

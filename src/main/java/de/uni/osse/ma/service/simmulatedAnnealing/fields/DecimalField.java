@@ -28,15 +28,20 @@ public class DecimalField extends DataField<BigDecimal> {
     }
 
     @Override
+    public int getDynamicMaxObfuscation(Map<String, Object> params) {
+        if (params.containsKey(PARAM_KEY_INTERVALS)) {
+            return ((List<?>) params.get(PARAM_KEY_INTERVALS)).size() + 1;
+        }
+        return super.getDynamicMaxObfuscation(params);
+    }
+
+    @Override
     public String representWithObfuscation(int level, Map<String, Object> params) throws NoMoreAnonymizationLevelsException {
         if (level == 0) {
             return this.internalValue.toString();
         }
 
-        int maxLevel = 1;
-        if (this.params.containsKey(PARAM_KEY_INTERVALS)) {
-            maxLevel = ((List<?>) this.params.get(PARAM_KEY_INTERVALS)).size() + 1;
-        }
+        final int maxLevel = getDynamicMaxObfuscation(params);
 
         if (level == maxLevel) {
             return "*";
@@ -45,26 +50,37 @@ public class DecimalField extends DataField<BigDecimal> {
             throw new NoMoreAnonymizationLevelsException(level);
         }
 
-        if (MapUtils.isNotEmpty(this.params)) {
-            if (params.containsKey(PARAM_KEY_INTERVALSTART) && this.internalValue.compareTo(new BigDecimal(MapUtils.getString(params, PARAM_KEY_INTERVALSTART))) < 0) {
-                return "<" + MapUtils.getString(params, PARAM_KEY_INTERVALSTART);
+        BigDecimal intervalStart = BigDecimal.ZERO;
+        BigDecimal intervalEnd = BigDecimal.valueOf(Long.MAX_VALUE);
+        BigDecimal intervalSize = BigDecimal.valueOf((int) Math.pow(10, level));
+
+        if (MapUtils.isNotEmpty(params)) {
+            if (params.containsKey(PARAM_KEY_INTERVALSTART)) {
+                intervalStart = new BigDecimal(MapUtils.getString(params, PARAM_KEY_INTERVALSTART));
             }
-            if (params.containsKey(PARAM_KEY_INTERVALEND) && this.internalValue.compareTo(new BigDecimal(MapUtils.getString(params, PARAM_KEY_INTERVALEND))) >= 0) {
-                return ">=" + MapUtils.getString(params, PARAM_KEY_INTERVALEND);
+            if (params.containsKey(PARAM_KEY_INTERVALEND)) {
+                intervalEnd = new BigDecimal(MapUtils.getString(params, PARAM_KEY_INTERVALEND));
             }
             if (params.containsKey(PARAM_KEY_INTERVALS)) {
-                // should always be true, since maxLevel is only greater 1 if we got intervals
-                BigDecimal intervalSize = new BigDecimal(MapUtils.getString(params, PARAM_KEY_INTERVALS));
-                BigDecimal intervalStart = BigDecimal.ZERO;
-                if (params.containsKey(PARAM_KEY_INTERVALSTART)) {
-                    intervalStart = new BigDecimal(MapUtils.getString(params, PARAM_KEY_INTERVALSTART));
-                }
-                BigDecimal intervalFloor = this.internalValue.subtract(intervalStart).divide(intervalSize, RoundingMode.FLOOR).multiply(intervalSize);
-                BigDecimal intervalCeil = intervalFloor.add(intervalSize);
-
-                return intervalFloor + "-" + intervalCeil;
+                // should always be true, since maxLevel is only greater 1 if we got intervalSize
+                // TODO: needs to be able to deal with an array
+                intervalSize = new BigDecimal(((List<?>) params.get(PARAM_KEY_INTERVALS)).get(level-1).toString());
             }
         }
-        throw new NoMoreAnonymizationLevelsException(level);
+
+        return toInterval(intervalStart, intervalSize, intervalEnd);
+    }
+
+    private String toInterval(BigDecimal intervalStart, BigDecimal intervalSize, BigDecimal intervalEnd) {
+        if (this.internalValue.compareTo(intervalStart) < 0) {
+            return "<" + intervalStart;
+        }
+        if (this.internalValue.compareTo(intervalEnd) >= 0) {
+            return ">=" + intervalEnd;
+        }
+        BigDecimal intervalFloor = this.internalValue.subtract(intervalStart).divide(intervalSize, RoundingMode.FLOOR).multiply(intervalSize);
+        BigDecimal intervalCeil = intervalFloor.add(intervalSize);
+
+        return intervalFloor + "-" + intervalCeil;
     }
 }
