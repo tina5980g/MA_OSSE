@@ -2,7 +2,7 @@ from enum import Enum
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from catboost import CatBoostClassifier
+from catboost import CatBoostClassifier, CatBoostError
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, balanced_accuracy_score
 
 from argparse import ArgumentParser
@@ -171,9 +171,13 @@ def calculate_classification_accuracy(columns_source, column_target, df, problem
         # Train the model on the training data.
         # TODO: GPU training  is not an option for large datasets until I figure out how to make batch training work
         # we need all classes present in both train and test, so we first get two examples of each class
-        model = CatBoostClassifier(iterations=150, depth=10, learning_rate=0.1, loss_function='MultiClass', cat_features=list(categorical_features_indices), task_type='CPU')
-        model.fit(x_train, y_train)
-
+        model = CatBoostClassifier(iterations=50, depth=10, learning_rate=0.1, loss_function='MultiClass', cat_features=list(categorical_features_indices), task_type='CPU')
+        try:
+            model.fit(x_train, y_train)
+        except CatBoostError as e:
+            print('CatBoostError!', e)
+            print('Continuing, as these are usually caused by bad data (e.g. all values are constant)')
+            return -float('inf')
 
         return score_multiclass(model, x_test, y_test)
 
@@ -184,7 +188,13 @@ def calculate_classification_accuracy(columns_source, column_target, df, problem
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_seed)
 
         catboost_model = CatBoostClassifier(iterations=150, depth=10, learning_rate=0.1, loss_function='Logloss', cat_features=list(categorical_features_indices))
-        catboost_model.fit(X=x_train,y=y_train)
+        try:
+            catboost_model.fit(X=x_train,y=y_train)
+        except CatBoostError as e:
+            print('CatBoostError!', e)
+            print('Continuing, as these are usually caused by bad data (e.g. all values are constant)')
+            return -float('inf')
+
         return score_binary(catboost_model, x_test, y_test)
 
 

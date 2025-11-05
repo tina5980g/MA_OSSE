@@ -25,12 +25,13 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-@Scope( proxyMode = ScopedProxyMode.TARGET_CLASS )
+@Scope(proxyMode = ScopedProxyMode.TARGET_CLASS)
 public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnnealing.Parameters> {
     private static final Random RANDOM = new Random();
     private static final BigDecimal INITIAL_TEMPERATURE = BigDecimal.valueOf(1000);
-    private static final BigDecimal MINIMUM_TEMPERATURE = BigDecimal.ONE.scaleByPowerOfTen(-1000);
-    private static final BigDecimal COOLING_RATE = BigDecimal.valueOf(8).scaleByPowerOfTen(-10);
+    private static final BigDecimal MINIMUM_TEMPERATURE = BigDecimal.ONE.scaleByPowerOfTen(-3);
+    private static final BigDecimal COOLING_RATE = BigDecimal.valueOf(8).scaleByPowerOfTen(-1);
+    private static final int ITERATIONS_PER_COOLING = 5;
 
     private final Categorizer categorizer;
     private final FileInteractionService fileInteractionService;
@@ -73,56 +74,59 @@ public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnne
         int iterationsWithoutImprovement = 0;
 
         while (currentTemperature.compareTo(MINIMUM_TEMPERATURE) > 0 && iterationsWithoutImprovement < maxIterationsWithoutImprovement) {
+
             boolean hasChanged = false;
 
-            // find next candidate
-            final Solution nextSolution = history.isEmpty() ? currentSolution : nextSolution(parameters.headerSource(), currentSolution, keyList);
-            final Optional<Solution> historicalSolution = history.stream()
-                    .filter(sol -> Objects.equals(sol.getAnonymityLevels(), nextSolution.getAnonymityLevels()))
-                    .findAny(); // there should only ever be one match
-            if (historicalSolution.isPresent()) {
-                log.warn("Duplicate Solution {}. Retrieved score {} from history.", nextSolution.getAnonymityLevels(), historicalSolution.get().getScore());
-                // this solution was already scored. To save on computation time, we don't calculate the score again
-                nextSolution.setScore(historicalSolution.get().getScore());
-            } else if (nextSolution.getAnonymityLevels().entrySet().stream().allMatch(headerInfoIntegerEntry ->
-                    headerInfoIntegerEntry.getValue() == (parameters.headerSource().maxObfuscationFor(headerInfoIntegerEntry.getKey()))
-            )) {
-                // all maximum obfuscations -> CatBoost will error
-                nextSolution.setScore(BigDecimal.ONE.negate());
-                history.add(nextSolution);
+            for (int i = 0; i < ITERATIONS_PER_COOLING; i++) {
+                // find next candidate
+                final Solution nextSolution = history.isEmpty() ? currentSolution : nextSolution(parameters.headerSource(), currentSolution, keyList);
+                final Optional<Solution> historicalSolution = history.stream()
+                        .filter(sol -> Objects.equals(sol.getAnonymityLevels(), nextSolution.getAnonymityLevels()))
+                        .findAny(); // there should only ever be one match
+                if (historicalSolution.isPresent()) {
+                    log.warn("Duplicate Solution {}. Retrieved score {} from history.", nextSolution.getAnonymityLevels(), historicalSolution.get().getScore());
+                    // this solution was already scored. To save on computation time, we don't calculate the score again
+                    nextSolution.setScore(historicalSolution.get().getScore());
+                } else if (nextSolution.getAnonymityLevels().entrySet().stream().allMatch(headerInfoIntegerEntry ->
+                        headerInfoIntegerEntry.getValue() == (parameters.headerSource().maxObfuscationFor(headerInfoIntegerEntry.getKey()))
+                )) {
+                    // all maximum obfuscations -> CatBoost will error
+                    nextSolution.setScore(BigDecimal.ONE.negate());
+                    history.add(nextSolution);
 
-            } else {
-                BigDecimal score = categorizer.scoreModelAccurary(new Categorizer.ClassificationScriptArguments.ClassificationScriptArgumentsBuilder()
-                        .rootPath(fileInteractionService.getRootPath())
-                        .datasetFilename(dataSource)
-                        .equivalenceclassSize(parameters.kLevel())
-                        .maxSuppression(parameters.maxSuppression())
-                        .targetColumn(parameters.classificationTarget())
-                        .solutionColumns(solutionToPythonArg(nextSolution))
-                );
+                } else {
+                    BigDecimal score = categorizer.scoreModelAccurary(new Categorizer.ClassificationScriptArguments.ClassificationScriptArgumentsBuilder()
+                            .rootPath(fileInteractionService.getRootPath())
+                            .datasetFilename(dataSource)
+                            .equivalenceclassSize(parameters.kLevel())
+                            .maxSuppression(parameters.maxSuppression())
+                            .targetColumn(parameters.classificationTarget())
+                            .solutionColumns(solutionToPythonArg(nextSolution))
+                    );
 
-                nextSolution.setScore(score);
-                history.add(nextSolution);
-            }
-
-            // For the first iteration, we compare the initial solution with itself.
-            if (nextSolution.getScore().compareTo(currentSolution.getScore()) >= 0) {
-                currentSolution = nextSolution;
-                if (nextSolution.getScore().compareTo(allTimeBestSolution.getScore()) >= 0) {
-                    allTimeBestSolution = nextSolution;
+                    nextSolution.setScore(score);
+                    history.add(nextSolution);
                 }
-                hasChanged = true;
-            } else {
-                double acceptance_probability = Math.exp((currentSolution.getScore().subtract(nextSolution.getScore())).divide(currentTemperature, RoundingMode.HALF_UP).doubleValue());
-                if (RANDOM.nextDouble() < acceptance_probability) {
+
+                if (nextSolution.getScore().compareTo(currentSolution.getScore()) > 0) {
                     currentSolution = nextSolution;
+                    if (nextSolution.getScore().compareTo(allTimeBestSolution.getScore()) > 0) {
+                        allTimeBestSolution = nextSolution;
+                    }
                     hasChanged = true;
+                } else {
+                    double acceptance_probability = Math.exp((currentSolution.getScore().subtract(nextSolution.getScore())).divide(currentTemperature, RoundingMode.HALF_UP).doubleValue());
+                    if (RANDOM.nextDouble() < acceptance_probability) {
+                        currentSolution = nextSolution;
+                        hasChanged = true;
+                    }
                 }
             }
+
+            currentTemperature = currentTemperature.multiply(COOLING_RATE);
 
             if (hasChanged) {
                 iterationsWithoutImprovement = 0;
-                currentTemperature = currentTemperature.multiply(COOLING_RATE);
             } else {
                 iterationsWithoutImprovement++;
             }
@@ -169,7 +173,7 @@ public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnne
 
     public record Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource,
                              @Nonnull String classificationTarget,
-                             @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) implements ProcessorParams{
+                             @Nonnull Integer kLevel, @Nonnull BigDecimal maxSuppression) implements ProcessorParams {
 
         @Builder
         public Parameters(@Nonnull String dataIdentifier, @Nonnull HeadersDto headerSource, @Nonnull String classificationTarget, @Nullable Integer kLevel, @Nullable BigDecimal maxSuppression) {
