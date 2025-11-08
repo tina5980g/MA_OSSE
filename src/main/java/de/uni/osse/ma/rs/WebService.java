@@ -2,6 +2,7 @@ package de.uni.osse.ma.rs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.uni.osse.ma.rs.dto.*;
+import de.uni.osse.ma.service.DownloadPreparationService;
 import de.uni.osse.ma.service.FileInteractionService;
 import de.uni.osse.ma.service.simmulatedAnnealing.*;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,12 +36,16 @@ public class WebService {
     private final Map<AnonymizationAlgorithm, AnonymityProcessor<?>> anonymityProcessorMap;
     private final ObjectMapper objectMapper;
     private final DatasetService datasetService;
+    private final DownloadPreparationService downloadPreparationService;
 
     @Autowired
-    public WebService(FileInteractionService fileInteractionService, List<AnonymityProcessor<?>> anonymityProcessors, ObjectMapper objectMapper, DatasetService datasetService) {
+    public WebService(FileInteractionService fileInteractionService, List<AnonymityProcessor<?>> anonymityProcessors,
+                      ObjectMapper objectMapper, DatasetService datasetService,
+                      DownloadPreparationService downloadPreparationService) {
         this.fileInteractionService = fileInteractionService;
         this.objectMapper = objectMapper;
         this.datasetService = datasetService;
+        this.downloadPreparationService = downloadPreparationService;
 
         this.anonymityProcessorMap = anonymityProcessors.stream().collect(Collectors.toMap(AnonymityProcessor::getAlgorithm, Function.identity()));
     }
@@ -130,15 +136,15 @@ public class WebService {
 
     // String representation of a Solution (Solution contains a map, so Jackson gets confused when deserializing
     @GetMapping(value = "/strategy/{dataIdentifier}/{solutionIdentifier}", produces =  {MediaType.APPLICATION_JSON_VALUE, "text/csv"})
-    public String getSolution(@PathVariable("dataIdentifier") String dataIdentifier, @PathVariable("solutionIdentifier") String solutionIdentifier, @RequestHeader("Accept-Encoding") String encoding) throws Exception {
+    public ResponseEntity<?> getSolution(@PathVariable("dataIdentifier") String dataIdentifier, @PathVariable("solutionIdentifier") String solutionIdentifier, @RequestHeader("Accept-Encoding") String encoding) throws Exception {
         String solution = fileInteractionService.readStoredSolution(dataIdentifier, solutionIdentifier);
-        if (solution == null) {
-            throw new ResponseStatusException(HttpStatus.NO_CONTENT, "Solution not yet found. Try again later.");
-        }
         if (encoding == null || MediaType.APPLICATION_JSON_VALUE.equalsIgnoreCase(encoding)) {
-            return solution;
+            if (solution == null) {
+                throw new ResponseStatusException(HttpStatus.NO_CONTENT, "Solution not yet found. Try again later.");
+            }
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(solution);
         } else if ("text/csv".equalsIgnoreCase(encoding)) {
-            return "";
+            return downloadPreparationService.prepareSolutionForDownload(dataIdentifier, solution);
         } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid encoding: " + encoding);
         }

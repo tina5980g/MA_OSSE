@@ -143,7 +143,7 @@ public class SimulatedAnnealing implements AsyncAnonymityProcessor<SimulatedAnne
     @Override
     public void processAsync(Parameters parameters, String solutionIdentifier) throws Exception {
         final Solution solution = process(parameters);
-        fileInteractionService.writeSolution(parameters.dataIdentifier(), solutionIdentifier, new SimplifiedSolution(solution));
+        fileInteractionService.writeSolution(parameters.dataIdentifier(), solutionIdentifier, new SimplifiedSolution(solution, parameters.classificationTarget));
     }
 
     @Override

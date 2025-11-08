@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvException;
+import com.opencsv.exceptions.CsvValidationException;
 import de.uni.osse.ma.config.SystemConfiguration;
 import de.uni.osse.ma.rs.dto.HeadersDto;
 import de.uni.osse.ma.service.simmulatedAnnealing.FILE_TYPE;
@@ -12,7 +13,6 @@ import de.uni.osse.ma.service.simmulatedAnnealing.SimplifiedSolution;
 import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.stream.Streams;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.stereotype.Component;
 
@@ -151,6 +151,45 @@ public class FileInteractionService {
             throw new FileNotFoundException("Solution file " + solutionIdentifier + " for dataset " + datasetIdentifier + " does not exist.");
         }
         return Files.readString(solutionPath);
+    }
+
+    public Stream<String[]> applySolution(String datasetIdentifier, String serializedSolution) throws IOException {
+        SimplifiedSolution solution = mapper.readerFor(SimplifiedSolution.class).readValue(serializedSolution);
+        final List<String> relevantColumns = new ArrayList<>(solution.columnIdentifierToLevel().size() + 1);
+        solution.columnIdentifierToLevel().forEach((columnName, level) -> relevantColumns.add(columnName + "_" + level));
+        relevantColumns.add(solution.targetColumn());
+
+        try (var inputStreamReader = readDatasetFile(datasetIdentifier, FILE_TYPE.PROCESSED_DATA_SET)) {
+            try (var reader = new CSVReader(inputStreamReader)) {
+                // figure out which of the columns are part of the solution
+                final List<Integer> columnIndexes = new ArrayList<>(relevantColumns.size());
+                final String[] headers = reader.readNext();
+
+                // ensure the order of columns in relevantColumns is respected in columnIndexes.
+                for (String relevantColumn : relevantColumns) {
+                    for (int j = 0; j < headers.length; j++) {
+                        if (relevantColumn.equalsIgnoreCase(headers[j])) {
+                            columnIndexes.add(j);
+                            break;
+                        }
+                    }
+                }
+
+                Stream<String[]> headerStream = Stream.ofNullable(relevantColumns.toArray(new String[0]));
+                Stream<String[]> contentStream = StreamSupport.stream(reader.spliterator(), false).map(line -> {
+                    String[] filteredRow = new String[columnIndexes.size()];
+                    for (int i = 0; i < columnIndexes.size(); i++) {
+                        filteredRow[i] = line[columnIndexes.get(i)];
+                    }
+                    return filteredRow;
+                });
+
+
+                return Stream.concat(headerStream, contentStream);
+            } catch (CsvValidationException e) {
+                throw new IOException("processed.csv could not be read correctly", e);
+            }
+        }
     }
 
     private InputStreamReader readDatasetFile(final String datasetIdentifier, final FILE_TYPE fileType) throws IOException {
