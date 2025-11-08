@@ -22,6 +22,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry -> {
                     authorizationManagerRequestMatcherRegistry.requestMatchers("/osse/**").authenticated();
+                    authorizationManagerRequestMatcherRegistry.requestMatchers("/v3/api-docs", "/v3/api-docs.yaml").permitAll();
                     authorizationManagerRequestMatcherRegistry.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
                 })
                 .httpBasic(Customizer.withDefaults())

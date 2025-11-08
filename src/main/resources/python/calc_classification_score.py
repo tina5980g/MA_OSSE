@@ -114,6 +114,10 @@ def objective_function(df, solution, column_target, k, max_suppressed_fraction):
     if problemtype == ProblemType.MULTI_CLASS:
         # for multi classification, we also have to suppress classes with less than 2 occurences, or splitting and scoring won't work
         data_filtered = suppress(data_filtered, [column_target], 2)
+        # we could end up with only two classes after suppression, so recalculate the ProblemType
+        if len(pd.unique(data_filtered[column_target])) <= 2:
+            print('MULTI_CLASS turned into BINARY after suppression')
+            problemtype = ProblemType.BINARY
 
     suppressed_rows = total_rows - len(data_filtered)
     suppressed_fraction = suppressed_rows / total_rows

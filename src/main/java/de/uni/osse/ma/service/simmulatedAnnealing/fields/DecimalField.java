@@ -63,7 +63,6 @@ public class DecimalField extends DataField<BigDecimal> {
             }
             if (params.containsKey(PARAM_KEY_INTERVALS)) {
                 // should always be true, since maxLevel is only greater 1 if we got intervalSize
-                // TODO: needs to be able to deal with an array
                 intervalSize = new BigDecimal(((List<?>) params.get(PARAM_KEY_INTERVALS)).get(level-1).toString());
             }
         }
